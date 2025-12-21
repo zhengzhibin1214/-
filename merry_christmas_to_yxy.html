@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>终极浪漫圣诞树</title>
-  <!-- Three.js 国内CDN（bootcdn，稳定不卡） -->
-  <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.155.0/three.min.js"></script>
+  <title>终极浪漫圣诞树（优化版）</title>
+  <!-- Three.js 国内稳定CDN（替换为bootcdn最新兼容版） -->
+  <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/three.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     .info {
@@ -36,21 +36,21 @@
 <body>
   <div class="info">Merry Christmas</div>
   <button id="playBtn">点击播放圣诞音乐</button>
-  <!-- 圣诞音乐：国内可访问的公版《Silent Night》 -->
-  <audio id="christmasMusic" src="https://www.mfiles.co.uk/mp3-downloads/silent-night.mp3" loop muted>
+  <!-- 圣诞音乐：国内稳定链接（替换为网易云公版） -->
+  <audio id="christmasMusic" src="https://music.163.com/song/media/outer/url?id=5262875.mp3" loop muted>
     你的浏览器不支持audio标签
   </audio>
 
   <script>
-    // ========== 全局配置 ==========
+    // ========== 全局配置（性能优化：降低粒子数，适配手机） ==========
     const treeHeight = 6;    // 圣诞树高度
     const treeRadius = 3;   // 圣诞树底部半径
-    const layers = 20;      // 圣诞树分层数
-    const particleCount = 3000; // 降低粒子数，手机更流畅
-    const snowCount = 100;   // 降低雪花数
-    const snowSpeed = 0.02;  // 雪花速度
-    const heartCount = 30;   // 降低爱心数
-    const trailLength = 3;   // 粒子拖尾保留的历史帧数
+    const layers = 15;      // 分层数降低（原20→15）
+    const particleCount = 1000; // 粒子数降低（原3000→1000）
+    const snowCount = 50;   // 雪花数降低（原100→50）
+    const snowSpeed = 0.01; // 雪花速度降低（原0.02→0.01）
+    const heartCount = 15;  // 爱心数降低（原30→15）
+    const trailLength = 2;  // 拖尾帧数降低（原3→2）
 
     // ========== 1. 初始化Three.js核心 ==========
     const scene = new THREE.Scene();
@@ -64,21 +64,21 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // ========== 2. 光照系统（环境光+聚光灯） ==========
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // ========== 2. 光照系统（优化角度，更柔和） ==========
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); //  ambient强度提升（原0.4→0.5）
     scene.add(ambientLight);
 
-    const spotLight = new THREE.SpotLight(0xffffff, 1);
-    spotLight.position.set(2, treeHeight / 2 + 1, 2); 
+    const spotLight = new THREE.SpotLight(0xfff9c4, 1.2); // 暖光替换冷光（原0xffffff→0xfff9c4）
+    spotLight.position.set(3, treeHeight / 2 + 1, 3); 
     spotLight.target = new THREE.Object3D(); 
     spotLight.target.position.set(0, 0, 0);    
-    spotLight.angle = Math.PI / 6;   
-    spotLight.penumbra = 0.3;        
+    spotLight.angle = Math.PI / 5;   // 照射角度扩大（原PI/6→PI/5）
+    spotLight.penumbra = 0.4;        // 边缘柔化提升（原0.3→0.4）
     spotLight.castShadow = true;     
     scene.add(spotLight);
     scene.add(spotLight.target);
 
-    // ========== 3. 圣诞树粒子系统 ==========
+    // ========== 3. 圣诞树粒子系统（颜色更暖） ==========
     const treeGeometry = new THREE.BufferGeometry();
     const treePositions = new Float32Array(particleCount * 3);
     const treeColors = new Float32Array(particleCount * 3);
@@ -94,9 +94,10 @@
       treePositions[i * 3 + 1] = y;
       treePositions[i * 3 + 2] = radius * Math.sin(angle);
 
-      const r = 0.8 + Math.random() * 0.2;  
-      const g = 0.2 + Math.random() * 0.2;  
-      const b = 0.6 + Math.random() * 0.2;  
+      // 颜色优化：更暖的绿色（原冷色调→暖色调）
+      const r = 0.6 + Math.random() * 0.2;  
+      const g = 0.8 + Math.random() * 0.2;  
+      const b = 0.4 + Math.random() * 0.2;  
       treeColors[i * 3] = r;
       treeColors[i * 3 + 1] = g;
       treeColors[i * 3 + 2] = b;
@@ -114,7 +115,7 @@
     const treeParticles = new THREE.Points(treeGeometry, treeMaterial);
     scene.add(treeParticles);
 
-    // ========== 4. 粒子拖尾特效 ==========
+    // ========== 4. 粒子拖尾特效（性能优化） ==========
     const trailParticleCount = particleCount * trailLength;
     const trailPositions = new Float32Array(trailParticleCount * 3);
     const trailColors = new Float32Array(trailParticleCount * 3);
@@ -123,19 +124,19 @@
     trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
 
     const trailMaterial = new THREE.PointsMaterial({
-      size: 1.5,
+      size: 1.2, // 尺寸降低（原1.5→1.2）
       vertexColors: true,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      opacity: 0.6 
+      opacity: 0.5 // 透明度降低（原0.6→0.5）
     });
     const trailParticles = new THREE.Points(trailGeometry, trailMaterial);
     scene.add(trailParticles);
 
     const particleTrails = new Array(particleCount).fill(0).map(() => []);
 
-    // ========== 5. 树顶星星 ==========
+    // ========== 5. 树顶星星（尺寸微调） ==========
     const starGeometry = new THREE.BufferGeometry();
     const starPositions = new Float32Array(1 * 3);
     starPositions[0] = 0;
@@ -144,23 +145,23 @@
     starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
 
     const starMaterial = new THREE.PointsMaterial({
-      size: 5,
-      color: 0xffffff, 
+      size: 4, // 尺寸降低（原5→4）
+      color: 0xffff00, // 暖黄色（原白色→暖黄）
       transparent: true,
       blending: THREE.AdditiveBlending
     });
     const star = new THREE.Points(starGeometry, starMaterial);
     scene.add(star);
 
-    // ========== 6. 雪花粒子系统 ==========
+    // ========== 6. 雪花粒子系统（速度降低，更柔和） ==========
     const snowGeometry = new THREE.BufferGeometry();
     const snowPositions = new Float32Array(snowCount * 3);
     const snowColors = new Float32Array(snowCount * 3);
 
     for (let i = 0; i < snowCount; i++) {
-      const x = (Math.random() - 0.5) * 10;
-      const y = 8 + Math.random() * 5; 
-      const z = (Math.random() - 0.5) * 10;
+      const x = (Math.random() - 0.5) * 8; // 范围缩小（原10→8）
+      const y = 6 + Math.random() * 4;    // 高度降低（原8→6，5→4）
+      const z = (Math.random() - 0.5) * 8;
       snowPositions[i * 3] = x;
       snowPositions[i * 3 + 1] = y;
       snowPositions[i * 3 + 2] = z;
@@ -176,7 +177,7 @@
     snowGeometry.setAttribute('color', new THREE.BufferAttribute(snowColors, 3));
 
     const snowMaterial = new THREE.PointsMaterial({
-      size: 1.5,
+      size: 1.2, // 尺寸降低（原1.5→1.2）
       vertexColors: true,
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -191,17 +192,17 @@
         const yIndex = i * 3 + 1;
         snowPos[yIndex] -= snowSpeed; 
         if (snowPos[yIndex] < -treeHeight / 2 - 2) {
-          snowPos[yIndex] = 15;
-          snowPos[i * 3] = (Math.random() - 0.5) * 10;
-          snowPos[i * 3 + 2] = (Math.random() - 0.5) * 10;
+          snowPos[yIndex] = 12; // 重置高度降低（原15→12）
+          snowPos[i * 3] = (Math.random() - 0.5) * 8;
+          snowPos[i * 3 + 2] = (Math.random() - 0.5) * 8;
         }
       }
       snowParticles.geometry.attributes.position.needsUpdate = true;
     }
 
-    // ========== 7. 爱心粒子系统（国内CDN贴图） ==========
+    // ========== 7. 爱心粒子系统（修复贴图+尺寸优化） ==========
     const heartTexture = new THREE.TextureLoader().load(
-      'https://cdn.jsdelivr.net/gh/loadingio/cdn@master/heart.png' // 国内稳定爱心贴图
+      'https://cdn-icons-png.flaticon.com/512/66/66621.png' // 国内稳定贴图
     );
     const heartSprites = [];
 
@@ -212,14 +213,14 @@
         transparent: true
       });
       const sprite = new THREE.Sprite(material);
-      sprite.scale.set(0.5, 0.5, 1); 
-      const range = 5;
+      sprite.scale.set(0.4, 0.4, 1); // 尺寸降低（原0.5→0.4）
+      const range = 4; // 范围缩小（原5→4）
       sprite.position.set(
         (Math.random() - 0.5) * range,
         (Math.random() - 0.5) * range,
         (Math.random() - 0.5) * range
       );
-      sprite.rotationSpeed = (Math.random() - 0.5) * 0.02; 
+      sprite.rotationSpeed = (Math.random() - 0.5) * 0.015; // 速度降低（原0.02→0.015）
       scene.add(sprite);
       return sprite;
     }
@@ -231,13 +232,24 @@
     function updateHearts() {
       heartSprites.forEach(sprite => {
         sprite.rotation += sprite.rotationSpeed; 
-        sprite.position.y += Math.sin(Date.now() * 0.001 + sprite.position.x * 10) * 0.01;
+        sprite.position.y += Math.sin(Date.now() * 0.001 + sprite.position.x * 10) * 0.008; // 幅度降低
       });
     }
 
-    // ========== 8. 交互与音乐 ==========
+    // ========== 8. 交互与音乐（尝试自动播放，兼容浏览器） ==========
     const audio = document.getElementById('christmasMusic');
     const playBtn = document.getElementById('playBtn');
+    
+    // 尝试自动播放（需浏览器允许）
+    audio.autoplay = true;
+    audio.load(); // 强制加载
+    audio.addEventListener('canplaythrough', () => {
+      audio.play().catch(err => {
+        // 自动播放失败，显示按钮
+        playBtn.style.display = 'block';
+      });
+    });
+
     playBtn.addEventListener('click', () => {
       audio.play();
       playBtn.style.display = 'none';
@@ -247,7 +259,7 @@
       alert('Merry Christmas！岳欣宜宝宝，愿我们被爱包围～');
     });
 
-    // ========== 9. 动画循环 ==========
+    // ========== 9. 动画循环（性能优化：减少计算量） ==========
     camera.position.z = 10;
 
     function animate() {
@@ -271,7 +283,7 @@
           trailPositions[trailIndex * 3 + 1] = p.y;
           trailPositions[trailIndex * 3 + 2] = p.z;
           
-          const fade = 1 - j * 0.25;
+          const fade = 1 - j * 0.3; // 衰减加快（原0.25→0.3）
           trailColors[trailIndex * 3] = treeColors[i * 3] * fade;
           trailColors[trailIndex * 3 + 1] = treeColors[i * 3 + 1] * fade;
           trailColors[trailIndex * 3 + 2] = treeColors[i * 3 + 2] * fade;
