@@ -4,104 +4,241 @@
     <meta charset="UTF-8">
     <title>岳欣宜(宝ᴗ宝)的圣诞树🎄>岳欣宜>yxy
     <style>
-        body { margin: 0; overflow: hidden; }
-        #info { position: absolute; top: 10px; width: 100%; text-align: center; color: pink; font-family: Arial; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; /* 黑色背景更容易看到白色问题 */
+        }
+        #info { 
+            position: absolute; 
+            top: 10px; 
+            width: 100%; 
+            text-align: center; 
+            color: #ff69b4; 
+            font-family: Arial; 
+            z-index: 100;
+        }
+        #debug {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
-    <div id="info">基础粉色粒子圣诞树 | 按 H 键切换为爱心</div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <div id="info">粉色粒子圣诞树 | 按 H 键切换为爱心 | 按 R 键重置</div>
+    <div id="debug">状态: 加载中...</div>
+    
+    <!-- 使用本地备份的Three.js -->
     <script>
-        // 1. 基础设置：场景、相机、渲染器
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // 2. 创建粉色粒子材质
-        const particleMaterial = new THREE.PointsMaterial({
-            color: 0xff69b4, // 粉色
-            size: 0.05,
-            transparent: true
-        });
-
-        // 3. 定义粒子位置数据：生成圣诞树形状的粒子
-        const treeParticles = [];
-        const particleCount = 1500;
-
-        for (let i = 0; i < particleCount; i++) {
-            // 树的主体（锥形）
-            const radius = Math.random() * 2.5;
-            const angle = Math.random() * Math.PI * 2;
-            const height = Math.random() * 5;
-
-            // 越往上，半径越小，形成树形
-            const effectiveRadius = radius * (1 - height / 5);
-
-            const x = Math.cos(angle) * effectiveRadius;
-            const z = Math.sin(angle) * effectiveRadius;
-            const y = height;
-
-            treeParticles.push(x, y, z);
+        // 先尝试CDN，失败后使用备用方案
+        function loadThreeJS() {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+            script.onload = initApp;
+            script.onerror = function() {
+                document.getElementById('debug').innerHTML = 'CDN加载失败，使用备用方案...';
+                // 备用：使用其他CDN
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+                fallbackScript.onload = initApp;
+                fallbackScript.onerror = function() {
+                    document.getElementById('debug').innerHTML = '错误: 无法加载Three.js库！请检查网络连接。';
+                };
+                document.head.appendChild(fallbackScript);
+            };
+            document.head.appendChild(script);
         }
-
-        // 4. 创建粒子几何体并设置位置
-        let particleGeometry = new THREE.BufferGeometry();
-        particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(treeParticles, 3));
-        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
-        scene.add(particleSystem);
-
-        // 5. 定义爱心形状的粒子位置（用于切换）
-        function createHeartParticles(count) {
-            const particles = [];
-            for (let i = 0; i < count; i++) {
-                const t = Math.random() * Math.PI * 2;
-                // 心形线参数方程
-                const x = 16 * Math.pow(Math.sin(t), 3);
-                const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-                const z = 0;
-                // 缩放并平移心形
-                particles.push(x * 0.04, y * 0.04 + 3, z);
-            }
-            return particles;
-        }
-
-        // 6. 相机位置和动画循环
-        camera.position.z = 10;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            // 让粒子系统缓慢旋转
-            particleSystem.rotation.y += 0.005;
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        // 7. 键盘交互：按 H 键在圣诞树和爱心之间切换
-        const heartParticles = createHeartParticles(particleCount);
-        window.addEventListener('keydown', (event) => {
-            if (event.code === 'KeyH') {
-                const positions = particleGeometry.attributes.position.array;
-                const isTree = Math.abs(positions[0] - treeParticles[0]) < 0.001; // 简单判断当前形状
-
-                const targetShape = isTree ? heartParticles : treeParticles;
-                for (let i = 0; i < positions.length; i++) {
-                    positions[i] = targetShape[i];
+        
+        function initApp() {
+            document.getElementById('debug').innerHTML = 'Three.js加载成功！初始化场景...';
+            
+            try {
+                // === 1. 基础Three.js设置 ===
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x000000); // 明确设置黑色背景
+                
+                const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                
+                // 检查WebGL支持
+                if (!renderer.capabilities.isWebGLAvailable) {
+                    document.getElementById('debug').innerHTML = '错误: 浏览器不支持WebGL！';
+                    return;
                 }
-                particleGeometry.attributes.position.needsUpdate = true;
-                document.getElementById('info').textContent = isTree 
-                    ? "已切换为爱心形状 | 按 H 键切换回圣诞树" 
-                    : "已切换为圣诞树形状 | 按 H 键切换为爱心";
+                
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+                
+                // === 2. 添加一些光线 ===
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xff69b4, 0.8);
+                directionalLight.position.set(5, 5, 5);
+                scene.add(directionalLight);
+                
+                // === 3. 创建粒子系统 ===
+                const particleCount = 800;
+                const treeParticles = [];
+                const heartParticles = [];
+                
+                // 生成圣诞树粒子
+                for (let i = 0; i < particleCount; i++) {
+                    const radius = Math.random() * 2;
+                    const angle = Math.random() * Math.PI * 2;
+                    const height = Math.random() * 4;
+                    const effectiveRadius = radius * (1 - height / 4);
+                    
+                    treeParticles.push(
+                        Math.cos(angle) * effectiveRadius,
+                        height,
+                        Math.sin(angle) * effectiveRadius
+                    );
+                }
+                
+                // 生成爱心粒子
+                for (let i = 0; i < particleCount; i++) {
+                    const t = Math.random() * Math.PI * 2;
+                    const x = 16 * Math.pow(Math.sin(t), 3);
+                    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                    
+                    heartParticles.push(
+                        x * 0.04,
+                        y * 0.04 + 2,
+                        0
+                    );
+                }
+                
+                // 粒子材质 - 明亮的粉色
+                const material = new THREE.PointsMaterial({
+                    color: 0xff69b4,
+                    size: 0.07,
+                    transparent: true,
+                    opacity: 0.9,
+                    sizeAttenuation: true
+                });
+                
+                // 粒子几何体
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(treeParticles, 3));
+                
+                const particles = new THREE.Points(geometry, material);
+                scene.add(particles);
+                
+                // === 4. 相机位置 ===
+                camera.position.z = 8;
+                camera.position.y = 2;
+                
+                // === 5. 动画循环 ===
+                function animate() {
+                    requestAnimationFrame(animate);
+                    
+                    // 缓慢旋转
+                    particles.rotation.y += 0.005;
+                    particles.rotation.x = Math.sin(Date.now() * 0.001) * 0.1;
+                    
+                    renderer.render(scene, camera);
+                }
+                animate();
+                
+                // === 6. 形状切换功能 ===
+                let isTree = true;
+                
+                function switchShape() {
+                    const positions = geometry.attributes.position.array;
+                    const targetShape = isTree ? heartParticles : treeParticles;
+                    
+                    // 创建平滑过渡动画
+                    const startPositions = [...positions];
+                    const startTime = Date.now();
+                    const duration = 1000; // 1秒过渡
+                    
+                    function transition() {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        
+                        // 使用缓动函数使过渡更平滑
+                        const easeProgress = progress < 0.5 
+                            ? 2 * progress * progress 
+                            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                        
+                        for (let i = 0; i < positions.length; i++) {
+                            positions[i] = startPositions[i] + (targetShape[i] - startPositions[i]) * easeProgress;
+                        }
+                        
+                        geometry.attributes.position.needsUpdate = true;
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(transition);
+                        } else {
+                            isTree = !isTree;
+                            document.getElementById('info').textContent = 
+                                isTree ? "圣诞树形状 | 按 H 键切换为爱心" : "爱心形状 | 按 H 键切换回圣诞树";
+                        }
+                    }
+                    
+                    transition();
+                }
+                
+                // === 7. 交互控制 ===
+                window.addEventListener('keydown', (e) => {
+                    if (e.code === 'KeyH') {
+                        switchShape();
+                    }
+                    if (e.code === 'KeyR') {
+                        // 重置为圣诞树
+                        const positions = geometry.attributes.position.array;
+                        for (let i = 0; i < positions.length; i++) {
+                            positions[i] = treeParticles[i];
+                        }
+                        geometry.attributes.position.needsUpdate = true;
+                        isTree = true;
+                        document.getElementById('info').textContent = "已重置为圣诞树 | 按 H 键切换为爱心";
+                    }
+                });
+                
+                // === 8. 响应窗口大小变化 ===
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+                
+                // === 9. 添加鼠标交互 ===
+                let mouseX = 0, mouseY = 0;
+                window.addEventListener('mousemove', (e) => {
+                    mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                    mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+                });
+                
+                // 修改动画循环加入鼠标交互
+                const originalAnimate = animate;
+                animate = function() {
+                    requestAnimationFrame(animate);
+                    
+                    particles.rotation.y += 0.005 + mouseX * 0.01;
+                    particles.rotation.x = Math.sin(Date.now() * 0.001) * 0.1 + mouseY * 0.1;
+                    
+                    renderer.render(scene, camera);
+                };
+                
+                document.getElementById('debug').innerHTML = 
+                    `状态: 运行正常 | 粒子数: ${particleCount} | WebGL: ${renderer.capabilities.getMaxAnisotropy()}x`;
+                
+            } catch (error) {
+                document.getElementById('debug').innerHTML = `初始化错误: ${error.message}`;
+                console.error(error);
             }
-        });
-
-        // 8. 窗口大小调整
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        }
+        
+        // 页面加载后开始
+        window.addEventListener('DOMContentLoaded', loadThreeJS);
     </script>
 </body>
 </html>
