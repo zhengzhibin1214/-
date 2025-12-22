@@ -1,230 +1,107 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>岳欣宜(宝ᴗ宝)的圣诞树🎄>岳欣宜>yxy
-  <!-- Three.js 国内稳定CDN -->
-  <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.155.0/three.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    .info {
-      position: absolute; 
-      top: 10px; 
-      left: 50%; 
-      transform: translateX(-50%);
-      color: #fff; 
-      font-family: "Microsoft YaHei", Arial, sans-serif; 
-      font-size: 16px;
-      z-index: 999;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>岳欣宜(宝ᴗ宝)的圣诞树🎄>岳欣宜>yxy
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; color: pink; font-family: Arial; }
+    </style>
 </head>
 <body>
-  <div class="info">Merry Christmas</div>
-  <script>
-    // ========== 核心配置（粉色主题+浪漫粒子） ==========
-    const TREE_HEIGHT = 8;      // 圣诞树高度（更高更立体）
-    const TREE_RADIUS = 4;     // 圣诞树底部半径
-    const LAYERS = 25;         // 分层数（更多层更细腻）
-    const PARTICLE_COUNT = 5000; // 粒子数（更密集）
-    const SNOW_COUNT = 150;    // 雪花数（更梦幻）
-    const HEART_TOP_SIZE = 3;  // 树顶爱心尺寸
-    const PINK_COLOR = new THREE.Color(0xff9ac1); // 主粉色
+    <div id="info">基础粉色粒子圣诞树 | 按 H 键切换为爱心</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 1. 基础设置：场景、相机、渲染器
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-    // ========== 1. 初始化 Three.js 核心 ==========
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      75, 
-      window.innerWidth / window.innerHeight, 
-      0.1, 
-      1000
-    );
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+        // 2. 创建粉色粒子材质
+        const particleMaterial = new THREE.PointsMaterial({
+            color: 0xff69b4, // 粉色
+            size: 0.05,
+            transparent: true
+        });
 
-    // ========== 2. 光照系统（粉色暖光） ==========
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
+        // 3. 定义粒子位置数据：生成圣诞树形状的粒子
+        const treeParticles = [];
+        const particleCount = 1500;
 
-    const spotLight = new THREE.SpotLight(PINK_COLOR, 1.8); // 粉色聚光
-    spotLight.position.set(6, TREE_HEIGHT / 2 + 2, 6);
-    spotLight.target.position.set(0, 0, 0);
-    spotLight.angle = Math.PI / 6;
-    spotLight.penumbra = 0.4;
-    spotLight.castShadow = true;
-    scene.add(spotLight);
-    scene.add(spotLight.target);
+        for (let i = 0; i < particleCount; i++) {
+            // 树的主体（锥形）
+            const radius = Math.random() * 2.5;
+            const angle = Math.random() * Math.PI * 2;
+            const height = Math.random() * 5;
 
-    // ========== 3. 粉色圣诞树粒子系统 ==========
-    const treeGeometry = new THREE.BufferGeometry();
-    const treePositions = new Float32Array(PARTICLE_COUNT * 3);
-    const treeColors = new Float32Array(PARTICLE_COUNT * 3);
+            // 越往上，半径越小，形成树形
+            const effectiveRadius = radius * (1 - height / 5);
 
-    const layerHeight = TREE_HEIGHT / LAYERS;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const layer = Math.floor(Math.random() * LAYERS);
-      const y = -TREE_HEIGHT / 2 + layer * layerHeight;
-      const radius = TREE_RADIUS * (1 - layer / LAYERS);
-      const angle = Math.random() * Math.PI * 2;
+            const x = Math.cos(angle) * effectiveRadius;
+            const z = Math.sin(angle) * effectiveRadius;
+            const y = height;
 
-      treePositions[i * 3] = radius * Math.cos(angle);
-      treePositions[i * 3 + 1] = y;
-      treePositions[i * 3 + 2] = radius * Math.sin(angle);
-
-      // 粉色渐变（浅粉→深粉）
-      const r = 0.9 + Math.random() * 0.1;
-      const g = 0.5 + Math.random() * 0.2;
-      const b = 0.7 + Math.random() * 0.2;
-      treeColors[i * 3] = r;
-      treeColors[i * 3 + 1] = g;
-      treeColors[i * 3 + 2] = b;
-    }
-    treeGeometry.setAttribute('position', new THREE.BufferAttribute(treePositions, 3));
-    treeGeometry.setAttribute('color', new THREE.BufferAttribute(treeColors, 3));
-
-    const treeMaterial = new THREE.PointsMaterial({
-      size: 2,
-      vertexColors: true,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const treeParticles = new THREE.Points(treeGeometry, treeMaterial);
-    scene.add(treeParticles);
-
-    // ========== 4. 粒子拖尾特效（增强流动感） ==========
-    const trailGeometry = new THREE.BufferGeometry();
-    const trailPositions = new Float32Array(PARTICLE_COUNT * 3 * 3); // 3帧拖尾
-    const trailColors = new Float32Array(PARTICLE_COUNT * 3 * 3);
-    trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-    trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
-
-    const trailMaterial = new THREE.PointsMaterial({
-      size: 1.5,
-      vertexColors: true,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      opacity: 0.7
-    });
-    const trailParticles = new THREE.Points(trailGeometry, trailMaterial);
-    scene.add(trailParticles);
-
-    const particleTrails = new Array(PARTICLE_COUNT).fill(0).map(() => []);
-
-    // ========== 5. 树顶爱心（视频同款核心） ==========
-    const heartTopTexture = new THREE.TextureLoader().load(
-      'https://cdn.jsdelivr.net/gh/loadingio/cdn@master/heart.png' // 爱心顶贴图
-    );
-    const heartTopMaterial = new THREE.SpriteMaterial({
-      map: heartTopTexture,
-      color: 0xff4d88, // 深粉色爱心
-      transparent: true
-    });
-    const heartTop = new THREE.Sprite(heartTopMaterial);
-    heartTop.scale.set(HEART_TOP_SIZE, HEART_TOP_SIZE, 1);
-    heartTop.position.set(0, TREE_HEIGHT / 2 + 1, 0); // 树顶位置
-    scene.add(heartTop);
-
-    // ========== 6. 雪花粒子系统（星空感） ==========
-    const snowGeometry = new THREE.BufferGeometry();
-    const snowPositions = new Float32Array(SNOW_COUNT * 3);
-    const snowColors = new Float32Array(SNOW_COUNT * 3);
-
-    for (let i = 0; i < SNOW_COUNT; i++) {
-      const x = (Math.random() - 0.5) * 15;
-      const y = 10 + Math.random() * 8;
-      const z = (Math.random() - 0.5) * 15;
-      snowPositions[i * 3] = x;
-      snowPositions[i * 3 + 1] = y;
-      snowPositions[i * 3 + 2] = z;
-
-      // 白色雪花带粉光
-      const r = 1.0;
-      const g = 0.9;
-      const b = 1.0;
-      snowColors[i * 3] = r;
-      snowColors[i * 3 + 1] = g;
-      snowColors[i * 3 + 2] = b;
-    }
-    snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
-    snowGeometry.setAttribute('color', new THREE.BufferAttribute(snowColors, 3));
-
-    const snowMaterial = new THREE.PointsMaterial({
-      size: 1.5,
-      vertexColors: true,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const snowParticles = new THREE.Points(snowGeometry, snowMaterial);
-    scene.add(snowParticles);
-
-    function updateSnow() {
-      const snowPos = snowParticles.geometry.attributes.position.array;
-      for (let i = 0; i < SNOW_COUNT; i++) {
-        const yIndex = i * 3 + 1;
-        snowPos[yIndex] -= 0.025; // 雪花速度
-        if (snowPos[yIndex] < -TREE_HEIGHT / 2 - 5) {
-          snowPos[yIndex] = 20; // 雪花高度
-          snowPos[i * 3] = (Math.random() - 0.5) * 15;
-          snowPos[i * 3 + 2] = (Math.random() - 0.5) * 15;
+            treeParticles.push(x, y, z);
         }
-      }
-      snowParticles.geometry.attributes.position.needsUpdate = true;
-    }
 
-    // ========== 7. 动画循环（缓慢旋转+拖尾） ==========
-    camera.position.z = 15;
+        // 4. 创建粒子几何体并设置位置
+        let particleGeometry = new THREE.BufferGeometry();
+        particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(treeParticles, 3));
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleSystem);
 
-    function animate() {
-      requestAnimationFrame(animate);
-
-      // 圣诞树+爱心顶 同步旋转
-      treeParticles.rotation.y += 0.002;
-      heartTop.rotation.y += 0.002;
-
-      // 更新粒子拖尾
-      let trailIndex = 0;
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
-        const pos = treeParticles.geometry.attributes.position.array;
-        const x = pos[i * 3];
-        const y = pos[i * 3 + 1];
-        const z = pos[i * 3 + 2];
-
-        particleTrails[i].unshift({ x, y, z });
-        particleTrails[i] = particleTrails[i].slice(0, 3);
-
-        for (let j = 0; j < particleTrails[i].length; j++) {
-          const p = particleTrails[i][j];
-          trailPositions[trailIndex * 3] = p.x;
-          trailPositions[trailIndex * 3 + 1] = p.y;
-          trailPositions[trailIndex * 3 + 2] = p.z;
-
-          const fade = 1 - j * 0.25;
-          trailColors[trailIndex * 3] = treeColors[i * 3] * fade;
-          trailColors[trailIndex * 3 + 1] = treeColors[i * 3 + 1] * fade;
-          trailColors[trailIndex * 3 + 2] = treeColors[i * 3 + 2] * fade;
-          trailIndex++;
+        // 5. 定义爱心形状的粒子位置（用于切换）
+        function createHeartParticles(count) {
+            const particles = [];
+            for (let i = 0; i < count; i++) {
+                const t = Math.random() * Math.PI * 2;
+                // 心形线参数方程
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                const z = 0;
+                // 缩放并平移心形
+                particles.push(x * 0.04, y * 0.04 + 3, z);
+            }
+            return particles;
         }
-      }
-      trailGeometry.attributes.position.needsUpdate = true;
-      trailGeometry.attributes.color.needsUpdate = true;
 
-      updateSnow();
-      renderer.render(scene, camera);
-    }
-    animate();
+        // 6. 相机位置和动画循环
+        camera.position.z = 10;
 
-    // ========== 8. 窗口适配 ==========
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
+        function animate() {
+            requestAnimationFrame(animate);
+            // 让粒子系统缓慢旋转
+            particleSystem.rotation.y += 0.005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 7. 键盘交互：按 H 键在圣诞树和爱心之间切换
+        const heartParticles = createHeartParticles(particleCount);
+        window.addEventListener('keydown', (event) => {
+            if (event.code === 'KeyH') {
+                const positions = particleGeometry.attributes.position.array;
+                const isTree = Math.abs(positions[0] - treeParticles[0]) < 0.001; // 简单判断当前形状
+
+                const targetShape = isTree ? heartParticles : treeParticles;
+                for (let i = 0; i < positions.length; i++) {
+                    positions[i] = targetShape[i];
+                }
+                particleGeometry.attributes.position.needsUpdate = true;
+                document.getElementById('info').textContent = isTree 
+                    ? "已切换为爱心形状 | 按 H 键切换回圣诞树" 
+                    : "已切换为圣诞树形状 | 按 H 键切换为爱心";
+            }
+        });
+
+        // 8. 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
-
