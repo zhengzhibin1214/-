@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>岳欣宜宝ᴗ宝的圣诞树🎄</title>
+    <title>岳欣宜(宝ᴗ宝）的圣诞树🎄</title>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             overflow: hidden;
-            background-color: #000;
+            background: linear-gradient(to bottom, #0a0015, #1a0030);
             font-family: 'Arial', sans-serif;
             color: #fff;
             -webkit-tap-highlight-color: transparent;
@@ -53,12 +54,12 @@
             color: #ff69b4;
             font-size: 24px;
             margin-bottom: 10px;
-            text-shadow: 0 0 10px rgba(255, 105, 180, 0.7);
+            text-shadow: 0 0 15px rgba(255, 105, 180, 0.9);
         }
         .instructions {
             color: #aaa;
             font-size: 14px;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         #mobile-controls {
             position: absolute;
@@ -71,7 +72,7 @@
             display: none;
         }
         .mobile-btn {
-            background: rgba(255, 105, 180, 0.7);
+            background: rgba(255, 105, 180, 0.8);
             color: white;
             border: none;
             border-radius: 50px;
@@ -79,66 +80,101 @@
             font-size: 16px;
             cursor: pointer;
             pointer-events: auto;
-            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
+            box-shadow: 0 4px 20px rgba(255, 105, 180, 0.6);
+            transition: all 0.3s;
+        }
+        .mobile-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 105, 180, 1);
+        }
+        #particle-count {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
     <div id="loading-screen">
         <div class="spinner"></div>
-        <p style="color: #ff69b4; margin-top: 20px;">正在加载浪漫粒子宇宙...</p >
+        <p style="color: #ff69b4; margin-top: 20px;">正在生成专属圣诞树...</p>
     </div>
 
     <div id="container">
         <div id="ui">
-            <h1>✨ 粉色粒子圣诞树 ✨</h1>
-            <p class="instructions">网页版：按 H 键切换爱心 | 按 R 键重置</p >
-            <p class="instructions">触屏版：点击下方按钮切换</p >
+            <h1>✨ 宝宝的圣诞树 ✨</h1>
+            <p class="instructions">点击或按 H 键切换爱心 | 按 R 键重置</p>
+            <p class="instructions">鼠标/手指移动可旋转视角</p>
         </div>
         
         <div id="mobile-controls">
             <button class="mobile-btn" id="btn-switch">切换为爱心</button>
             <button class="mobile-btn" id="btn-reset">重置圣诞树</button>
         </div>
+        
+        <div id="particle-count">粒子数: 0</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     
     <script>
-        // ==================== 配置与状态 ====================
+        // ==================== 配置 ====================
         const CONFIG = {
-            particleCount: 1200,
-            particleColor: 0xFF69B4,
+            // 树冠粒子
+            crownParticleCount: 1500,
+            crownColor: 0xFF69B4,
+            
+            // 树干粒子
+            trunkParticleCount: 120,
+            trunkColor: 0x8B4513,
+            
+            // 树枝粒子
+            branchParticleCount: 200,
+            branchColor: 0xA0522D,
+            
+            // 场景
             backgroundColor: 0x000000,
-            trunkColor: 0x8B4513,       // 树干颜色 - 深棕色
-            trunkHeight: 2.5,           // 树干高度
-            trunkRadius: 0.4,           // 树干半径
-            trunkParticleCount: 80      // 树干粒子数
+            ambientLightIntensity: 0.6,
+            
+            // 动画
+            rotationSpeed: 0.003,
+            floatAmplitude: 0.03,
+            floatSpeed: 0.001
         };
         
-        let scene, camera, renderer, particles, trunk, isTree = true;
-        let treeParticles = [], heartParticles = [];
+        // ==================== 全局变量 ====================
+        let scene, camera, renderer;
+        let crownParticles, trunkParticles, branchParticles;
+        let crownGeometry, trunkGeometry, branchGeometry;
+        let crownPositions = [], heartPositions = [];
+        let trunkPositions = [], branchPositions = [];
+        let trunkHeartPositions = [], branchHeartPositions = [];
+        let isTree = true;
+        let mouseX = 0, mouseY = 0;
+        let animationId = null;
         
-        // ==================== 主初始化函数 ====================
+        // ==================== 主初始化 ====================
         async function init() {
             const loadingScreen = document.getElementById('loading-screen');
-            
-            // 检测设备和交互方式
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
             if (isMobile) {
                 document.getElementById('mobile-controls').style.display = 'flex';
-                document.querySelector('.instructions').innerText = '触屏版：点击下方按钮切换形状';
             }
             
-            // 创建Three.js场景
+            // 创建场景
             scene = new THREE.Scene();
             scene.background = new THREE.Color(CONFIG.backgroundColor);
             
+            // 创建相机
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 10;
-            camera.position.y = 3;
+            camera.position.z = 12;
+            camera.position.y = 4;
             
-            // 创建渲染器（针对微信优化）
+            // 创建渲染器
             renderer = new THREE.WebGLRenderer({ 
                 antialias: true, 
                 alpha: true,
@@ -146,30 +182,32 @@
             });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
             document.getElementById('container').appendChild(renderer.domElement);
             
             // 添加灯光
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            const ambientLight = new THREE.AmbientLight(0xffffff, CONFIG.ambientLightIntensity);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xff69b4, 0.5);
-            directionalLight.position.set(5, 5, 5);
+            const directionalLight = new THREE.DirectionalLight(0xff69b4, 0.7);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
             scene.add(directionalLight);
             
-            // 生成粒子数据
-            generateParticleData();
+            // 生成所有粒子数据
+            generateAllParticleData();
             
-            // 创建粒子系统
-            createParticleSystem();
+            // 创建所有粒子系统
+            createParticleSystems();
             
-            // 创建树干
-            createTrunk();
-            
-            // 开始动画循环
-            animate();
+            // 更新粒子计数显示
+            updateParticleCount();
             
             // 设置交互
             setupInteractions();
+            
+            // 开始动画
+            animate();
             
             // 隐藏加载界面
             setTimeout(() => {
@@ -177,168 +215,335 @@
                 setTimeout(() => {
                     loadingScreen.style.display = 'none';
                 }, 1000);
-            }, 1500);
+            }, 1200);
             
-            console.log('🎄 粒子圣诞树初始化完成！模式:', isMobile ? '移动触屏' : '桌面键盘');
+            console.log('🎄 圣诞树初始化完成！总粒子数:', 
+                CONFIG.crownParticleCount + CONFIG.trunkParticleCount + CONFIG.branchParticleCount);
         }
         
         // ==================== 生成粒子数据 ====================
-        function generateParticleData() {
-            // 生成圣诞树粒子
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const radius = Math.random() * 2.2;
-                const angle = Math.random() * Math.PI * 2;
-                const height = Math.random() * 5;
-                const effectiveRadius = radius * (1 - height / 5);
+        function generateAllParticleData() {
+            // 清空数组
+            crownPositions = []; heartPositions = [];
+            trunkPositions = []; branchPositions = [];
+            trunkHeartPositions = []; branchHeartPositions = [];
+            
+            // 1. 生成树冠粒子（圣诞树形状）
+            for (let i = 0; i < CONFIG.crownParticleCount; i++) {
+                // 分层生成，越往上越小
+                const layer = Math.floor(Math.random() * 5); // 0-4层
+                const layerHeight = layer * 1.0;
+                const maxRadius = 3.5 - layer * 0.6;
                 
-                treeParticles.push(
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * maxRadius;
+                const height = layerHeight + Math.random() * 0.8;
+                
+                // 锥形收缩
+                const effectiveRadius = radius * (1 - layer * 0.15);
+                
+                crownPositions.push(
                     Math.cos(angle) * effectiveRadius,
                     height,
                     Math.sin(angle) * effectiveRadius
                 );
             }
             
-            // 生成爱心粒子
-            for (let i = 0; i < CONFIG.particleCount; i++) {
+            // 2. 生成树冠粒子（爱心形状）
+            for (let i = 0; i < CONFIG.crownParticleCount; i++) {
                 const t = Math.random() * Math.PI * 2;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-                const z = (Math.random() - 0.5) * 1.5;
+                const z = (Math.random() - 0.5) * 2.5; // 增加一些深度
                 
-                heartParticles.push(
-                    x * 0.04,
-                    y * 0.04 + 3,
+                heartPositions.push(
+                    x * 0.05,
+                    y * 0.05 + 3.5,
                     z
                 );
             }
-        }
-        
-        // ==================== 创建树冠粒子系统 ====================
-        function createParticleSystem() {
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(treeParticles, 3));
             
-            const material = new THREE.PointsMaterial({
-                color: CONFIG.particleColor,
-                size: 0.08,
-                transparent: true,
-                opacity: 0.9,
-                sizeAttenuation: true
-            });
+            // 3. 生成树干粒子（圣诞树形状）
+            const trunkHeight = 4.5; // 树干高度
+            const trunkBaseRadius = 0.8; // 底部半径
+            const trunkTopRadius = 0.4; // 顶部半径
             
-            particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-        }
-        
-        // ==================== 创建树干粒子系统 ====================
-        function createTrunk() {
-            const trunkGeometry = new THREE.BufferGeometry();
-            const trunkPositions = [];
-            
-            // 生成树干粒子（一个矮圆柱体）
             for (let i = 0; i < CONFIG.trunkParticleCount; i++) {
+                // 树干从y=-2开始，到y=2.5结束，与树冠底部衔接
+                const height = -2 + (Math.random() * trunkHeight); // -2 到 2.5
+                const normalizedHeight = (height + 2) / trunkHeight; // 0到1
+                
+                // 树干半径从下到上逐渐变小
+                const radius = trunkBaseRadius + (trunkTopRadius - trunkBaseRadius) * normalizedHeight;
                 const angle = Math.random() * Math.PI * 2;
-                const height = (Math.random() - 0.5) * CONFIG.trunkHeight;
                 
                 trunkPositions.push(
-                    Math.cos(angle) * CONFIG.trunkRadius,
-                    height - 2.5,
-                    Math.sin(angle) * CONFIG.trunkRadius
+                    Math.cos(angle) * radius * 0.8, // 稍微压扁一点
+                    height,
+                    Math.sin(angle) * radius
                 );
             }
             
+            // 4. 生成树干粒子（爱心形状）- 在爱心底部形成一个小底座
+            for (let i = 0; i < CONFIG.trunkParticleCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 0.3 + Math.random() * 0.2;
+                const height = -1.5 + Math.random() * 1.0; // 爱心底部
+                
+                trunkHeartPositions.push(
+                    Math.cos(angle) * radius,
+                    height,
+                    Math.sin(angle) * radius
+                );
+            }
+            
+            // 5. 生成树枝粒子（圣诞树形状）
+            const branchLayers = [0.5, 1.5, 2.5]; // 树枝所在的层高
+            for (let i = 0; i < CONFIG.branchParticleCount; i++) {
+                const layerIndex = Math.floor(Math.random() * branchLayers.length);
+                const layerHeight = branchLayers[layerIndex];
+                
+                // 随机选择一个方向
+                const angle = Math.random() * Math.PI * 2;
+                const branchLength = 0.5 + Math.random() * 1.5;
+                
+                // 从树干向外延伸
+                const startRadius = 0.5 + layerIndex * 0.3;
+                const endRadius = startRadius + branchLength;
+                
+                // 在树枝上随机取一个点
+                const t = Math.random();
+                const radius = startRadius + (endRadius - startRadius) * t;
+                const branchAngle = angle + (Math.random() - 0.5) * 0.5; // 稍微有些弯曲
+                
+                // 高度稍微向下倾斜
+                const height = layerHeight - t * 0.3;
+                
+                branchPositions.push(
+                    Math.cos(branchAngle) * radius,
+                    height,
+                    Math.sin(branchAngle) * radius
+                );
+            }
+            
+            // 6. 生成树枝粒子（爱心形状）- 分散在爱心周围
+            for (let i = 0; i < CONFIG.branchParticleCount; i++) {
+                // 随机分布在爱心周围的球壳上
+                const radius = 1.5 + Math.random() * 2.0;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta) + 2;
+                const z = radius * Math.cos(phi);
+                
+                branchHeartPositions.push(x * 0.5, y * 0.5, z * 0.5);
+            }
+        }
+        
+        // ==================== 创建粒子系统 ====================
+        function createParticleSystems() {
+            // 1. 创建树冠粒子系统
+            crownGeometry = new THREE.BufferGeometry();
+            crownGeometry.setAttribute('position', new THREE.Float32BufferAttribute(crownPositions, 3));
+            
+            const crownMaterial = new THREE.PointsMaterial({
+                color: CONFIG.crownColor,
+                size: 0.07,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true,
+                blending: THREE.AdditiveBlending
+            });
+            
+            crownParticles = new THREE.Points(crownGeometry, crownMaterial);
+            scene.add(crownParticles);
+            
+            // 2. 创建树干粒子系统
+            trunkGeometry = new THREE.BufferGeometry();
             trunkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(trunkPositions, 3));
             
             const trunkMaterial = new THREE.PointsMaterial({
                 color: CONFIG.trunkColor,
-                size: 0.12,
+                size: 0.1,
                 transparent: true,
-                opacity: 0.9,
+                opacity: 0.85,
                 sizeAttenuation: true
             });
             
-            trunk = new THREE.Points(trunkGeometry, trunkMaterial);
-            scene.add(trunk);
+            trunkParticles = new THREE.Points(trunkGeometry, trunkMaterial);
+            scene.add(trunkParticles);
             
-            return trunk;
+            // 3. 创建树枝粒子系统
+            branchGeometry = new THREE.BufferGeometry();
+            branchGeometry.setAttribute('position', new THREE.Float32BufferAttribute(branchPositions, 3));
+            
+            const branchMaterial = new THREE.PointsMaterial({
+                color: CONFIG.branchColor,
+                size: 0.08,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: true
+            });
+            
+            branchParticles = new THREE.Points(branchGeometry, branchMaterial);
+            scene.add(branchParticles);
+        }
+        
+        // ==================== 形状切换 ====================
+        function switchShape() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            const crownPos = crownGeometry.attributes.position.array;
+            const trunkPos = trunkGeometry.attributes.position.array;
+            const branchPos = branchGeometry.attributes.position.array;
+            
+            const targetCrown = isTree ? heartPositions : crownPositions;
+            const targetTrunk = isTree ? trunkHeartPositions : trunkPositions;
+            const targetBranch = isTree ? branchHeartPositions : branchPositions;
+            
+            const startCrown = [...crownPos];
+            const startTrunk = [...trunkPos];
+            const startBranch = [...branchPos];
+            
+            const startTime = Date.now();
+            const duration = 1500;
+            
+            function transition() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // 使用缓动函数
+                const easeProgress = progress < 0.5 
+                    ? 2 * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+                // 过渡树冠粒子
+                for (let i = 0; i < crownPos.length; i++) {
+                    crownPos[i] = startCrown[i] + (targetCrown[i] - startCrown[i]) * easeProgress;
+                }
+                
+                // 过渡树干粒子
+                for (let i = 0; i < trunkPos.length; i++) {
+                    trunkPos[i] = startTrunk[i] + (targetTrunk[i] - startTrunk[i]) * easeProgress;
+                }
+                
+                // 过渡树枝粒子
+                for (let i = 0; i < branchPos.length; i++) {
+                    branchPos[i] = startBranch[i] + (targetBranch[i] - startBranch[i]) * easeProgress;
+                }
+                
+                crownGeometry.attributes.position.needsUpdate = true;
+                trunkGeometry.attributes.position.needsUpdate = true;
+                branchGeometry.attributes.position.needsUpdate = true;
+                
+                if (progress < 1) {
+                    animationId = requestAnimationFrame(transition);
+                } else {
+                    isTree = !isTree;
+                    updateUI();
+                    animationId = null;
+                }
+            }
+            
+            animationId = requestAnimationFrame(transition);
         }
         
         // ==================== 动画循环 ====================
         function animate() {
             requestAnimationFrame(animate);
             
-            // 树冠缓慢旋转
-            particles.rotation.y += 0.005;
-            particles.rotation.x = Math.sin(Date.now() * 0.001) * 0.05;
+            const time = Date.now() * CONFIG.floatSpeed;
             
-            // 树干同步旋转
-            if (trunk) {
-                trunk.rotation.y = particles.rotation.y;
-                trunk.rotation.x = particles.rotation.x;
+            // 树冠缓慢旋转和浮动
+            crownParticles.rotation.y += CONFIG.rotationSpeed + mouseX * 0.002;
+            crownParticles.rotation.x = Math.sin(time) * 0.05 + mouseY * 0.05;
+            
+            // 添加浮动效果
+            const positions = crownGeometry.attributes.position.array;
+            const originalPositions = isTree ? crownPositions : heartPositions;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                const idx = i / 3;
+                const floatOffset = Math.sin(time + idx * 0.1) * CONFIG.floatAmplitude;
+                
+                positions[i] = originalPositions[i] + floatOffset * 0.5;     // X
+                positions[i + 1] = originalPositions[i + 1] + floatOffset;   // Y
+                positions[i + 2] = originalPositions[i + 2] + floatOffset * 0.3; // Z
             }
+            
+            crownGeometry.attributes.position.needsUpdate = true;
+            
+            // 树干和树枝跟随旋转
+            trunkParticles.rotation.y = crownParticles.rotation.y;
+            trunkParticles.rotation.x = crownParticles.rotation.x;
+            branchParticles.rotation.y = crownParticles.rotation.y;
+            branchParticles.rotation.x = crownParticles.rotation.x;
             
             renderer.render(scene, camera);
         }
         
-        // ==================== 形状切换函数 ====================
-        function switchShape() {
-            const positions = particles.geometry.attributes.position.array;
-            const targetShape = isTree ? heartParticles : treeParticles;
-            
-            // 平滑过渡动画
-            const startPositions = [...positions];
-            const startTime = Date.now();
-            const duration = 1200;
-            
-            function transition() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                // 缓动函数
-                const easeProgress = progress < 0.5 
-                    ? 2 * progress * progress 
-                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                
-                for (let i = 0; i < positions.length; i++) {
-                    positions[i] = startPositions[i] + (targetShape[i] - startPositions[i]) * easeProgress;
-                }
-                
-                particles.geometry.attributes.position.needsUpdate = true;
-                
-                if (progress < 1) {
-                    requestAnimationFrame(transition);
-                } else {
-                    isTree = !isTree;
-                    updateUI();
-                }
-            }
-            
-            transition();
-        }
-        
-        // ==================== 更新界面显示 ====================
+        // ==================== 更新界面 ====================
         function updateUI() {
             const title = document.querySelector('h1');
             const btn = document.getElementById('btn-switch');
+            const instructions = document.querySelectorAll('.instructions')[0];
             
             if (isTree) {
-                title.innerHTML = '✨ 粉色粒子圣诞树 ✨';
+                title.innerHTML = '✨ 宝宝的圣诞树 ✨';
                 if (btn) btn.textContent = '切换为爱心';
+                instructions.textContent = '点击或按 H 键切换爱心 | 按 R 键重置';
             } else {
-                title.innerHTML = '❤️ 宝宝我爱你 ❤️';
+                title.innerHTML = '❤️ 我爱你宝宝 ❤️';
                 if (btn) btn.textContent = '切换为圣诞树';
+                instructions.textContent = '点击或按 H 键切换圣诞树 | 按 R 键重置';
             }
         }
         
-        // ==================== 设置交互控制 ====================
+        // ==================== 更新粒子计数显示 ====================
+        function updateParticleCount() {
+            const totalParticles = CONFIG.crownParticleCount + CONFIG.trunkParticleCount + CONFIG.branchParticleCount;
+            document.getElementById('particle-count').textContent = `粒子数: ${totalParticles}`;
+        }
+        
+        // ==================== 设置交互 ====================
         function setupInteractions() {
-            // 键盘控制 (桌面端)
+            // 鼠标移动控制视角
+            window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+            });
+            
+            // 触摸控制
+            let touchStartX = 0, touchStartY = 0;
+            window.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+            
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1) {
+                    mouseX = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+                    mouseY = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+                }
+            }, { passive: true });
+            
+            // 键盘控制
             window.addEventListener('keydown', (e) => {
                 if (e.code === 'KeyH') switchShape();
                 if (e.code === 'KeyR') resetToTree();
             });
             
-            // 触摸按钮控制 (移动端)
+            // 点击切换
+            window.addEventListener('click', () => {
+                if (!document.getElementById('loading-screen').style.display === 'none') {
+                    switchShape();
+                }
+            });
+            
+            // 移动端按钮
             const switchBtn = document.getElementById('btn-switch');
             const resetBtn = document.getElementById('btn-reset');
             
@@ -357,30 +562,33 @@
                     resetToTree();
                 });
             }
-            
-            // 触摸滑动手势控制
-            let touchStartY = 0;
-            window.addEventListener('touchstart', (e) => {
-                touchStartY = e.touches[0].clientY;
-            }, { passive: true });
-            
-            window.addEventListener('touchend', (e) => {
-                const touchEndY = e.changedTouches[0].clientY;
-                const deltaY = touchEndY - touchStartY;
-                
-                if (Math.abs(deltaY) > 50) {
-                    switchShape();
-                }
-            }, { passive: true });
         }
         
         // ==================== 重置为圣诞树 ====================
         function resetToTree() {
-            const positions = particles.geometry.attributes.position.array;
-            for (let i = 0; i < positions.length; i++) {
-                positions[i] = treeParticles[i];
+            if (!isTree) {
+                switchShape(); // 如果当前是爱心，先切换回圣诞树
             }
-            particles.geometry.attributes.position.needsUpdate = true;
+            
+            // 重置位置
+            const crownPos = crownGeometry.attributes.position.array;
+            const trunkPos = trunkGeometry.attributes.position.array;
+            const branchPos = branchGeometry.attributes.position.array;
+            
+            for (let i = 0; i < crownPos.length; i++) {
+                crownPos[i] = crownPositions[i];
+            }
+            for (let i = 0; i < trunkPos.length; i++) {
+                trunkPos[i] = trunkPositions[i];
+            }
+            for (let i = 0; i < branchPos.length; i++) {
+                branchPos[i] = branchPositions[i];
+            }
+            
+            crownGeometry.attributes.position.needsUpdate = true;
+            trunkGeometry.attributes.position.needsUpdate = true;
+            branchGeometry.attributes.position.needsUpdate = true;
+            
             isTree = true;
             updateUI();
         }
