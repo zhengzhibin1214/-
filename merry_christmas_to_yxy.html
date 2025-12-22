@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>粉色粒子圣诞树</title>
+    <title>岳欣宜(宝ᴗ宝)的圣诞树🎄>岳欣宜>yxy
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -68,7 +68,7 @@
             justify-content: center;
             gap: 20px;
             z-index: 100;
-            display: none; /* 默认隐藏，JS检测到移动设备时显示 */
+            display: none;
         }
         .mobile-btn {
             background: rgba(255, 105, 180, 0.7);
@@ -90,7 +90,6 @@
     </div>
 
     <div id="container">
-        <!-- Three.js画布将在这里渲染 -->
         <div id="ui">
             <h1>✨ 粉色粒子圣诞树 ✨</h1>
             <p class="instructions">网页版：按 H 键切换爱心 | 按 R 键重置</p >
@@ -103,7 +102,6 @@
         </div>
     </div>
 
-    <!-- 使用稳定且跨域的CDN -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     
     <script>
@@ -111,25 +109,28 @@
         const CONFIG = {
             particleCount: 1200,
             particleColor: 0xFF69B4,
-            backgroundColor: 0x000000
+            backgroundColor: 0x000000,
+            trunkColor: 0x8B4513,       // 树干颜色 - 深棕色
+            trunkHeight: 2.5,           // 树干高度
+            trunkRadius: 0.4,           // 树干半径
+            trunkParticleCount: 80      // 树干粒子数
         };
         
-        let scene, camera, renderer, particles, isTree = true;
+        let scene, camera, renderer, particles, trunk, isTree = true;
         let treeParticles = [], heartParticles = [];
         
         // ==================== 主初始化函数 ====================
         async function init() {
-            // 1. 隐藏加载屏幕
             const loadingScreen = document.getElementById('loading-screen');
             
-            // 2. 检测设备和交互方式
+            // 检测设备和交互方式
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             if (isMobile) {
                 document.getElementById('mobile-controls').style.display = 'flex';
                 document.querySelector('.instructions').innerText = '触屏版：点击下方按钮切换形状';
             }
             
-            // 3. 创建Three.js场景
+            // 创建Three.js场景
             scene = new THREE.Scene();
             scene.background = new THREE.Color(CONFIG.backgroundColor);
             
@@ -137,17 +138,17 @@
             camera.position.z = 10;
             camera.position.y = 3;
             
-            // 4. 创建渲染器（针对微信优化）
+            // 创建渲染器（针对微信优化）
             renderer = new THREE.WebGLRenderer({ 
                 antialias: true, 
                 alpha: true,
                 powerPreference: "high-performance"
             });
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 避免过高的像素比
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('container').appendChild(renderer.domElement);
             
-            // 5. 添加灯光
+            // 添加灯光
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
             
@@ -155,19 +156,22 @@
             directionalLight.position.set(5, 5, 5);
             scene.add(directionalLight);
             
-            // 6. 生成粒子数据
+            // 生成粒子数据
             generateParticleData();
             
-            // 7. 创建粒子系统
+            // 创建粒子系统
             createParticleSystem();
             
-            // 8. 开始动画循环
+            // 创建树干
+            createTrunk();
+            
+            // 开始动画循环
             animate();
             
-            // 9. 设置交互
+            // 设置交互
             setupInteractions();
             
-            // 10. 隐藏加载界面
+            // 隐藏加载界面
             setTimeout(() => {
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => {
@@ -178,7 +182,7 @@
             console.log('🎄 粒子圣诞树初始化完成！模式:', isMobile ? '移动触屏' : '桌面键盘');
         }
         
-        // ==================== 核心函数 ====================
+        // ==================== 生成粒子数据 ====================
         function generateParticleData() {
             // 生成圣诞树粒子
             for (let i = 0; i < CONFIG.particleCount; i++) {
@@ -199,7 +203,7 @@
                 const t = Math.random() * Math.PI * 2;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-                const z = (Math.random() - 0.5) * 1.5; // 添加一些深度
+                const z = (Math.random() - 0.5) * 1.5;
                 
                 heartParticles.push(
                     x * 0.04,
@@ -209,6 +213,7 @@
             }
         }
         
+        // ==================== 创建树冠粒子系统 ====================
         function createParticleSystem() {
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(treeParticles, 3));
@@ -225,16 +230,57 @@
             scene.add(particles);
         }
         
+        // ==================== 创建树干粒子系统 ====================
+        function createTrunk() {
+            const trunkGeometry = new THREE.BufferGeometry();
+            const trunkPositions = [];
+            
+            // 生成树干粒子（一个矮圆柱体）
+            for (let i = 0; i < CONFIG.trunkParticleCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const height = (Math.random() - 0.5) * CONFIG.trunkHeight;
+                
+                trunkPositions.push(
+                    Math.cos(angle) * CONFIG.trunkRadius,
+                    height - 2.5,
+                    Math.sin(angle) * CONFIG.trunkRadius
+                );
+            }
+            
+            trunkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(trunkPositions, 3));
+            
+            const trunkMaterial = new THREE.PointsMaterial({
+                color: CONFIG.trunkColor,
+                size: 0.12,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true
+            });
+            
+            trunk = new THREE.Points(trunkGeometry, trunkMaterial);
+            scene.add(trunk);
+            
+            return trunk;
+        }
+        
+        // ==================== 动画循环 ====================
         function animate() {
             requestAnimationFrame(animate);
             
-            // 缓慢旋转
+            // 树冠缓慢旋转
             particles.rotation.y += 0.005;
             particles.rotation.x = Math.sin(Date.now() * 0.001) * 0.05;
+            
+            // 树干同步旋转
+            if (trunk) {
+                trunk.rotation.y = particles.rotation.y;
+                trunk.rotation.x = particles.rotation.x;
+            }
             
             renderer.render(scene, camera);
         }
         
+        // ==================== 形状切换函数 ====================
         function switchShape() {
             const positions = particles.geometry.attributes.position.array;
             const targetShape = isTree ? heartParticles : treeParticles;
@@ -270,6 +316,7 @@
             transition();
         }
         
+        // ==================== 更新界面显示 ====================
         function updateUI() {
             const title = document.querySelector('h1');
             const btn = document.getElementById('btn-switch');
@@ -278,11 +325,12 @@
                 title.innerHTML = '✨ 粉色粒子圣诞树 ✨';
                 if (btn) btn.textContent = '切换为爱心';
             } else {
-                title.innerHTML = '❤️ 粉色粒子爱心 ❤️';
+                title.innerHTML = '❤️ 宝宝我爱你 ❤️';
                 if (btn) btn.textContent = '切换为圣诞树';
             }
         }
         
+        // ==================== 设置交互控制 ====================
         function setupInteractions() {
             // 键盘控制 (桌面端)
             window.addEventListener('keydown', (e) => {
@@ -310,7 +358,7 @@
                 });
             }
             
-            // 触摸滑动手势控制 (高级功能，可选)
+            // 触摸滑动手势控制
             let touchStartY = 0;
             window.addEventListener('touchstart', (e) => {
                 touchStartY = e.touches[0].clientY;
@@ -320,12 +368,13 @@
                 const touchEndY = e.changedTouches[0].clientY;
                 const deltaY = touchEndY - touchStartY;
                 
-                if (Math.abs(deltaY) > 50) { // 滑动超过50px触发切换
+                if (Math.abs(deltaY) > 50) {
                     switchShape();
                 }
             }, { passive: true });
         }
         
+        // ==================== 重置为圣诞树 ====================
         function resetToTree() {
             const positions = particles.geometry.attributes.position.array;
             for (let i = 0; i < positions.length; i++) {
