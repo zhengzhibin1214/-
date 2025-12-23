@@ -9,7 +9,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             overflow: hidden;
-            background: linear-gradient(135deg, #0a0015 0%, #1a0030 50%, #0a0015 100%);
+            background: linear-gradient(180deg, #0a0a2a 0%, #1a1a3a 30%, #2a2a4a 100%);
             font-family: 'Arial', sans-serif;
             color: #fff;
             -webkit-tap-highlight-color: transparent;
@@ -171,42 +171,46 @@
     <script>
         // ==================== 配置 ====================
         const CONFIG = {
-            // 圣诞树粒子数量（增加树冠层数）
-            crownParticleCount: 2200,      // 增加树冠粒子
-            trunkParticleCount: 180,
-            branchParticleCount: 250,
+            // 螺旋树冠配置
+            spiralTurns: 5,               // 螺旋圈数
+            spiralLayers: 10,             // 螺旋层数（即高度方向的分段）
+            particlesPerLayer: 220,       // 每层粒子数
             
-            // 雪花粒子系统
-            snowParticleCount: 500,        // 雪花粒子数量
-            snowColor: 0xE8F8FF,           // 雪花颜色（淡蓝色）
-            snowSize: 0.08,                // 雪花大小
-            snowSpeed: 0.5,                // 雪花下落速度
-            snowEnabled: true,             // 默认开启雪花
+            // 树干和树枝
+            trunkParticleCount: 200,
+            branchParticleCount: 300,
             
-            // 圣诞树配置
-            treeLayers: 8,                 // 增加到8层
-            treeMaxRadius: 4.5,            // 最大半径增加
+            // 雪花和雪地配置
+            snowParticleCount: 400,       // 空中雪花
+            groundSnowParticleCount: 800, // 地面雪粒子
+            snowColor: 0xF0F8FF,          // 雪花颜色（爱丽丝蓝）
+            groundSnowColor: 0xFFFFFF,    // 地面雪颜色（纯白）
+            snowEnabled: true,
             
-            // 颜色配置
-            crownColor: 0xFF69B4,
+            // 树冠颜色（粉色系渐变）
+            crownBaseColor: 0xFF69B4,     // 底部颜色（深粉）
+            crownTopColor: 0xFFB6C1,      // 顶部颜色（浅粉）
+            
+            // 其他颜色
             trunkColor: 0x8B4513,
             branchColor: 0xA0522D,
             heartBaseColor: 0xFFB6C1,
             
             // 粒子大小
-            crownParticleSize: 0.06,
-            trunkParticleSize: 0.08,
-            branchParticleSize: 0.065,
+            crownParticleSize: 0.07,
+            trunkParticleSize: 0.09,
+            branchParticleSize: 0.075,
+            groundSnowSize: 0.12,
+            
+            // 位置调整
+            treeVerticalPosition: -1.5,   // 降低圣诞树位置（负数表示向下）
+            groundSnowHeight: -3.5,       // 雪地高度
+            groundSnowRadius: 8,          // 雪地半径
             
             // 动画
-            rotationSpeed: 0.0012,
-            floatAmplitude: 0.016,
-            floatSpeed: 0.0005,
-            
-            // 圆形底座配置
-            baseRadius: 3.2,
-            baseHeight: -2.0,
-            baseParticleSize: 0.085,
+            rotationSpeed: 0.001,
+            floatAmplitude: 0.015,
+            floatSpeed: 0.0004,
             
             // 过渡配置
             transitionDuration: 2000,
@@ -215,15 +219,17 @@
         
         // ==================== 全局变量 ====================
         let scene, camera, renderer;
-        let crownParticles, trunkParticles, branchParticles, snowParticles;
-        let crownGeometry, trunkGeometry, branchGeometry, snowGeometry;
-        let crownMaterial, trunkMaterial, branchMaterial, snowMaterial;
+        let crownParticles, trunkParticles, branchParticles, snowParticles, groundSnowParticles;
+        let crownGeometry, trunkGeometry, branchGeometry, snowGeometry, groundSnowGeometry;
+        let crownMaterial, trunkMaterial, branchMaterial, snowMaterial, groundSnowMaterial;
         
-        // 粒子位置数组
+        // 粒子位置和颜色数组
         let crownTreePositions = [], crownHeartPositions = [];
+        let crownTreeColors = [], crownHeartColors = [];
         let trunkTreePositions = [], trunkHeartPositions = [];
         let branchTreePositions = [], branchHeartPositions = [];
         let snowPositions = [], snowVelocities = [];
+        let groundSnowPositions = [];
         
         // 颜色数组
         let trunkTreeColors = [], trunkHeartColors = [];
@@ -247,12 +253,13 @@
             
             // 创建场景
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0015);
+            scene.background = new THREE.Color(0x0a0a2a);
             
-            // 创建相机
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 15;  // 稍微拉远以显示更多雪花
-            camera.position.y = 1.5;
+            // 创建相机 - 斜上方45度视角
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+            // 相机位置：x和z偏移，y较高，形成45度俯角
+            camera.position.set(12, 8, 12);  // 斜上方45度
+            camera.lookAt(0, CONFIG.treeVerticalPosition + 2, 0); // 看向圣诞树中心
             
             // 创建渲染器
             renderer = new THREE.WebGLRenderer({ 
@@ -266,16 +273,23 @@
             document.getElementById('container').appendChild(renderer.domElement);
             
             // 添加灯光
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xff69b4, 0.8);
-            directionalLight.position.set(10, 10, 5);
-            scene.add(directionalLight);
+            // 主光源（粉色，从斜上方照射）
+            const mainLight = new THREE.DirectionalLight(0xff69b4, 0.8);
+            mainLight.position.set(10, 15, 10);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
             
-            // 添加一个专门照亮雪花的光源
-            const snowLight = new THREE.DirectionalLight(0xadd8e6, 0.3);
-            snowLight.position.set(-5, 10, -5);
+            // 辅助光源（白色，从另一侧补光）
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight.position.set(-10, 5, -10);
+            scene.add(fillLight);
+            
+            // 雪地专用光源
+            const snowLight = new THREE.DirectionalLight(0xadd8e6, 0.5);
+            snowLight.position.set(5, 10, -5);
             scene.add(snowLight);
             
             // 生成粒子数据
@@ -298,75 +312,111 @@
                 }, 800);
             }, 1200);
             
-            console.log('❄️ 雪花版多层圣诞树初始化完成！');
+            console.log('🎄 螺旋圣诞树与雪地效果初始化完成！');
         }
         
         // ==================== 生成粒子数据 ====================
         function generateParticleData() {
             // 清空数组
             crownTreePositions = []; crownHeartPositions = [];
+            crownTreeColors = []; crownHeartColors = [];
             trunkTreePositions = []; trunkHeartPositions = [];
             branchTreePositions = []; branchHeartPositions = [];
             trunkTreeColors = []; trunkHeartColors = [];
             branchTreeColors = []; branchHeartColors = [];
             snowPositions = []; snowVelocities = [];
+            groundSnowPositions = [];
             
-            // 1. 生成多层圣诞树冠粒子
-            console.log(`生成${CONFIG.treeLayers}层圣诞树冠粒子...`);
-            for (let layer = 0; layer < CONFIG.treeLayers; layer++) {
-                // 每层粒子数随层数变化，下层多上层少
-                const layerRatio = (CONFIG.treeLayers - layer) / CONFIG.treeLayers;
-                const layerParticles = Math.floor(CONFIG.crownParticleCount * layerRatio / CONFIG.treeLayers * 1.5);
+            // 1. 生成螺旋圣诞树冠粒子
+            console.log(`生成螺旋树冠粒子...`);
+            const totalParticles = CONFIG.spiralLayers * CONFIG.particlesPerLayer;
+            
+            for (let layer = 0; layer < CONFIG.spiralLayers; layer++) {
+                // 计算当前层的高度（从下到上，层间隔较大）
+                const height = layer * 0.9; // 每层高度0.9单位，间隔较大
                 
-                const layerHeight = layer * 0.75;  // 降低每层高度，使树更紧凑
-                const layerRadius = CONFIG.treeMaxRadius * (1 - layer * 0.08);
+                // 计算当前层的半径（底部大，顶部小）
+                const maxRadius = 3.5 * (1 - layer / CONFIG.spiralLayers * 0.5);
                 
-                for (let i = 0; i < layerParticles; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const radius = Math.sqrt(Math.random()) * layerRadius;
-                    const effectiveRadius = radius * (1 - layer * 0.1);
-                    const height = layerHeight + Math.random() * 0.5;
+                for (let i = 0; i < CONFIG.particlesPerLayer; i++) {
+                    // 计算螺旋角度（随着层数增加而旋转）
+                    const angle = (i / CONFIG.particlesPerLayer) * Math.PI * 2 + 
+                                  (layer / CONFIG.spiralLayers) * CONFIG.spiralTurns * Math.PI * 2;
                     
-                    crownTreePositions.push(
-                        Math.cos(angle) * effectiveRadius,
-                        height,
-                        Math.sin(angle) * effectiveRadius
+                    // 计算半径（螺旋向外）
+                    const radius = maxRadius * (0.3 + 0.7 * (layer / CONFIG.spiralLayers));
+                    
+                    // 添加一些随机偏移，使树冠更自然
+                    const randomOffset = (Math.random() - 0.5) * 0.2;
+                    
+                    const x = Math.cos(angle) * (radius + randomOffset);
+                    const z = Math.sin(angle) * (radius + randomOffset);
+                    const y = height + (Math.random() - 0.5) * 0.3; // 高度上稍微随机
+                    
+                    // 应用垂直位置偏移（降低整棵树）
+                    const verticalOffset = CONFIG.treeVerticalPosition;
+                    
+                    crownTreePositions.push(x, y + verticalOffset, z);
+                    
+                    // 计算颜色渐变（从底部的深粉色到顶部的浅粉色）
+                    const colorProgress = layer / CONFIG.spiralLayers;
+                    const r = (CONFIG.crownBaseColor >> 16 & 255) / 255;
+                    const g = (CONFIG.crownBaseColor >> 8 & 255) / 255;
+                    const b = (CONFIG.crownBaseColor & 255) / 255;
+                    
+                    const r2 = (CONFIG.crownTopColor >> 16 & 255) / 255;
+                    const g2 = (CONFIG.crownTopColor >> 8 & 255) / 255;
+                    const b2 = (CONFIG.crownTopColor & 255) / 255;
+                    
+                    crownTreeColors.push(
+                        r + (r2 - r) * colorProgress,
+                        g + (g2 - g) * colorProgress,
+                        b + (b2 - b) * colorProgress
                     );
                 }
             }
             
             // 2. 生成爱心粒子
             console.log("生成爱心粒子...");
-            for (let i = 0; i < CONFIG.crownParticleCount; i++) {
+            for (let i = 0; i < totalParticles; i++) {
                 const u = Math.random();
                 const v = Math.random();
                 const t = v * Math.PI * 2;
-                const r = Math.sqrt(u) * 1.2;
+                const r = Math.sqrt(u) * 1.3;
                 
                 const x = 16 * Math.pow(Math.sin(t), 3) * r;
                 const y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * r;
-                const z = (Math.random() - 0.5) * 2.0 * (1 - u);
+                const z = (Math.random() - 0.5) * 2.5 * (1 - u);
                 
+                // 爱心也降低位置
                 crownHeartPositions.push(
-                    x * 0.048,
-                    y * 0.048 + 0.8,
+                    x * 0.045,
+                    y * 0.045 + CONFIG.treeVerticalPosition + 2,
                     z * 0.6
+                );
+                
+                // 爱心颜色（粉色系）
+                crownHeartColors.push(
+                    0.9 + Math.random() * 0.1,  // R
+                    0.4 + Math.random() * 0.2,  // G
+                    0.6 + Math.random() * 0.2   // B
                 );
             }
             
             // 3. 生成树干粒子 - 圣诞树形状
             console.log("生成树干粒子...");
-            const trunkHeight = 4.5;  // 增加树干高度以匹配更多层树冠
+            const trunkHeight = 5.0;
             
             for (let i = 0; i < CONFIG.trunkParticleCount; i++) {
-                const height = -2.5 + (Math.random() * trunkHeight);
-                const normalizedHeight = (height + 2.5) / trunkHeight;
-                const radius = 0.85 * (1 - normalizedHeight * 0.5);
+                const height = -2.0 + (Math.random() * trunkHeight);
+                const normalizedHeight = (height + 2.0) / trunkHeight;
+                const radius = 0.9 * (1 - normalizedHeight * 0.6);
                 const angle = Math.random() * Math.PI * 2;
                 
+                // 应用垂直位置偏移
                 trunkTreePositions.push(
-                    Math.cos(angle) * radius * 0.7,
-                    height,
+                    Math.cos(angle) * radius * 0.8,
+                    height + CONFIG.treeVerticalPosition,
                     Math.sin(angle) * radius
                 );
                 
@@ -382,12 +432,12 @@
             console.log("生成爱心底座粒子...");
             for (let i = 0; i < CONFIG.trunkParticleCount; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const radius = CONFIG.baseRadius * (0.6 + Math.random() * 0.4);
-                const y = CONFIG.baseHeight;
+                const radius = 2.5 * (0.5 + Math.random() * 0.5);
+                const y = -1.5;
                 
                 trunkHeartPositions.push(
                     Math.cos(angle) * radius,
-                    y,
+                    y + CONFIG.treeVerticalPosition + 1,
                     Math.sin(angle) * radius
                 );
                 
@@ -399,30 +449,30 @@
                 );
             }
             
-            // 5. 生成树枝粒子 - 圣诞树形状（更多分支）
+            // 5. 生成树枝粒子 - 圣诞树形状（从螺旋树冠伸出）
             console.log("生成树枝粒子...");
-            // 增加树枝层数以匹配更多树冠层
-            const branchLayers = [-0.3, 0.8, 1.9, 3.0, 4.1];
-            const branchesPerLayer = 7;
+            const branchLevels = [0.5, 2.0, 3.5, 5.0, 6.5];
             
-            for (let layer = 0; layer < branchLayers.length; layer++) {
-                const layerHeight = branchLayers[layer];
+            for (let level = 0; level < branchLevels.length; level++) {
+                const levelHeight = branchLevels[level];
+                const branchCount = 6 + level; // 越往上分支越多
                 
-                for (let branch = 0; branch < branchesPerLayer; branch++) {
-                    const angle = (branch / branchesPerLayer) * Math.PI * 2 + Math.random() * 0.3;
-                    const branchLength = 1.2 + Math.random() * 1.3;
-                    const particlesPerBranch = Math.floor(CONFIG.branchParticleCount / (branchLayers.length * branchesPerLayer));
+                for (let branch = 0; branch < branchCount; branch++) {
+                    const angle = (branch / branchCount) * Math.PI * 2 + Math.random() * 0.5;
+                    const branchLength = 1.0 + Math.random() * 1.2 + level * 0.3;
+                    const particlesPerBranch = Math.floor(CONFIG.branchParticleCount / (branchLevels.length * branchCount));
                     
                     for (let p = 0; p < particlesPerBranch; p++) {
                         const t = Math.random();
-                        const curve = Math.sin(t * Math.PI) * 0.2;
-                        const radius = 0.6 + branchLength * t;
-                        const height = layerHeight - t * 0.35 + curve;
-                        const jitter = (Math.random() - 0.5) * 0.2;
+                        const curve = Math.sin(t * Math.PI) * 0.3;
+                        const radius = 0.5 + branchLength * t;
+                        const height = levelHeight - t * 0.5 + curve;
+                        const jitter = (Math.random() - 0.5) * 0.3;
                         
+                        // 应用垂直位置偏移
                         branchTreePositions.push(
                             Math.cos(angle + curve) * radius + jitter,
-                            height,
+                            height + CONFIG.treeVerticalPosition,
                             Math.sin(angle + curve) * radius + jitter
                         );
                         
@@ -439,19 +489,18 @@
             // 6. 生成树枝粒子 - 爱心形状（装饰粒子）
             console.log("生成爱心装饰粒子...");
             for (let i = 0; i < CONFIG.branchParticleCount; i++) {
-                // 在爱心周围形成光环效果
                 const phi = Math.acos(2 * Math.random() - 1);
                 const theta = Math.random() * Math.PI * 2;
-                const radius = 2.2 + Math.random() * 1.8;
+                const radius = 2.0 + Math.random() * 2.0;
                 
                 const x = radius * Math.sin(phi) * Math.cos(theta);
-                const y = radius * Math.sin(phi) * Math.sin(theta) + 0.5;
+                const y = radius * Math.sin(phi) * Math.sin(theta) + 1.0;
                 const z = radius * Math.cos(phi);
                 
                 branchHeartPositions.push(
-                    x * 0.35,
-                    y * 0.35,
-                    z * 0.35
+                    x * 0.4,
+                    y * 0.4 + CONFIG.treeVerticalPosition + 1.5,
+                    z * 0.4
                 );
                 
                 // 装饰粒子颜色（粉色渐变）
@@ -463,24 +512,38 @@
                 );
             }
             
-            // 7. 生成雪花粒子
+            // 7. 生成空中雪花粒子
             console.log(`生成${CONFIG.snowParticleCount}个雪花粒子...`);
-            const snowArea = 25; // 雪花分布区域大小
+            const snowArea = 30;
             
             for (let i = 0; i < CONFIG.snowParticleCount; i++) {
-                // 随机分布在相机视野范围内
                 const x = (Math.random() - 0.5) * snowArea;
-                const y = Math.random() * snowArea + 5; // 从上方开始
+                const y = Math.random() * snowArea + 5;
                 const z = (Math.random() - 0.5) * snowArea;
                 
                 snowPositions.push(x, y, z);
                 
-                // 随机速度
                 snowVelocities.push(
-                    (Math.random() - 0.5) * 0.02, // X方向轻微漂移
-                    -CONFIG.snowSpeed * (0.5 + Math.random() * 0.5), // Y方向下落速度
-                    (Math.random() - 0.5) * 0.02  // Z方向轻微漂移
+                    (Math.random() - 0.5) * 0.015,
+                    -0.4 * (0.5 + Math.random() * 0.5),
+                    (Math.random() - 0.5) * 0.015
                 );
+            }
+            
+            // 8. 生成地面雪粒子
+            console.log(`生成${CONFIG.groundSnowParticleCount}个地面雪粒子...`);
+            for (let i = 0; i < CONFIG.groundSnowParticleCount; i++) {
+                // 在圆形区域内生成
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.sqrt(Math.random()) * CONFIG.groundSnowRadius;
+                
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                
+                // 高度有轻微起伏，模拟积雪
+                const y = CONFIG.groundSnowHeight + (Math.random() - 0.5) * 0.3;
+                
+                groundSnowPositions.push(x, y, z);
             }
             
             console.log("粒子数据生成完成");
@@ -488,16 +551,17 @@
         
         // ==================== 创建粒子系统 ====================
         function createParticleSystems() {
-            // 1. 创建树冠粒子系统
+            // 1. 创建树冠粒子系统（带顶点颜色）
             crownGeometry = new THREE.BufferGeometry();
             crownGeometry.setAttribute('position', new THREE.Float32BufferAttribute(crownTreePositions, 3));
+            crownGeometry.setAttribute('color', new THREE.Float32BufferAttribute(crownTreeColors, 3));
             
             crownMaterial = new THREE.PointsMaterial({
-                color: CONFIG.crownColor,
                 size: CONFIG.crownParticleSize,
                 transparent: true,
                 opacity: 0.95,
                 sizeAttenuation: true,
+                vertexColors: true,
                 blending: THREE.AdditiveBlending
             });
             
@@ -536,13 +600,13 @@
             branchParticles = new THREE.Points(branchGeometry, branchMaterial);
             scene.add(branchParticles);
             
-            // 4. 创建雪花粒子系统
+            // 4. 创建空中雪花粒子系统
             snowGeometry = new THREE.BufferGeometry();
             snowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(snowPositions, 3));
             
             snowMaterial = new THREE.PointsMaterial({
                 color: CONFIG.snowColor,
-                size: CONFIG.snowSize,
+                size: CONFIG.crownParticleSize * 1.2,
                 transparent: true,
                 opacity: 0.8,
                 sizeAttenuation: true,
@@ -551,6 +615,21 @@
             
             snowParticles = new THREE.Points(snowGeometry, snowMaterial);
             scene.add(snowParticles);
+            
+            // 5. 创建地面雪粒子系统
+            groundSnowGeometry = new THREE.BufferGeometry();
+            groundSnowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(groundSnowPositions, 3));
+            
+            groundSnowMaterial = new THREE.PointsMaterial({
+                color: CONFIG.groundSnowColor,
+                size: CONFIG.groundSnowSize,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true
+            });
+            
+            groundSnowParticles = new THREE.Points(groundSnowGeometry, groundSnowMaterial);
+            scene.add(groundSnowParticles);
         }
         
         // ==================== 丝滑形状切换 ====================
@@ -564,6 +643,7 @@
             
             // 获取当前粒子位置和颜色
             const crownPositions = crownGeometry.attributes.position.array;
+            const crownColors = crownGeometry.attributes.color.array;
             const trunkPositions = trunkGeometry.attributes.position.array;
             const trunkColors = trunkGeometry.attributes.color.array;
             const branchPositions = branchGeometry.attributes.position.array;
@@ -571,6 +651,7 @@
             
             // 确定目标位置和颜色
             const targetCrownPositions = isTree ? crownHeartPositions : crownTreePositions;
+            const targetCrownColors = isTree ? crownHeartColors : crownTreeColors;
             const targetTrunkPositions = isTree ? trunkHeartPositions : trunkTreePositions;
             const targetTrunkColors = isTree ? trunkHeartColors : trunkTreeColors;
             const targetBranchPositions = isTree ? branchHeartPositions : branchTreePositions;
@@ -578,6 +659,7 @@
             
             // 保存起始位置和颜色
             const startCrownPositions = [...crownPositions];
+            const startCrownColors = [...crownColors];
             const startTrunkPositions = [...trunkPositions];
             const startTrunkColors = [...trunkColors];
             const startBranchPositions = [...branchPositions];
@@ -599,19 +681,22 @@
                 const colorProgress = Math.max(0, (elapsed - colorDelay) / (duration - colorDelay));
                 const easeColorProgress = easeInOutCubic(Math.min(colorProgress, 1));
                 
-                // 更新树冠位置
+                // 更新树冠位置和颜色
                 for (let i = 0; i < crownPositions.length; i++) {
                     crownPositions[i] = startCrownPositions[i] + 
                         (targetCrownPositions[i] - startCrownPositions[i]) * easeProgress;
+                    
+                    if (i < targetCrownColors.length) {
+                        crownColors[i] = startCrownColors[i] + 
+                            (targetCrownColors[i] - startCrownColors[i]) * easeColorProgress;
+                    }
                 }
                 
                 // 更新树干位置和颜色
                 for (let i = 0; i < trunkPositions.length; i++) {
-                    // 位置过渡
                     trunkPositions[i] = startTrunkPositions[i] + 
                         (targetTrunkPositions[i] - startTrunkPositions[i]) * easeProgress;
                     
-                    // 颜色过渡
                     if (i < targetTrunkColors.length) {
                         trunkColors[i] = startTrunkColors[i] + 
                             (targetTrunkColors[i] - startTrunkColors[i]) * easeColorProgress;
@@ -620,11 +705,9 @@
                 
                 // 更新树枝位置和颜色
                 for (let i = 0; i < branchPositions.length; i++) {
-                    // 位置过渡
                     branchPositions[i] = startBranchPositions[i] + 
                         (targetBranchPositions[i] - startBranchPositions[i]) * easeProgress;
                     
-                    // 颜色过渡
                     if (i < targetBranchColors.length) {
                         branchColors[i] = startBranchColors[i] + 
                             (targetBranchColors[i] - startBranchColors[i]) * easeColorProgress;
@@ -634,18 +717,19 @@
                 // 更新粒子大小
                 if (isTree) {
                     // 切换到爱心时，树干粒子变大形成底座
-                    const sizeProgress = Math.min(elapsed / (duration * 0.8), 1);
+                    const sizeProgress = Math.min(elapsed / (duration * 0.7), 1);
                     trunkMaterial.size = CONFIG.trunkParticleSize + 
-                        (CONFIG.baseParticleSize - CONFIG.trunkParticleSize) * sizeProgress;
+                        (CONFIG.trunkParticleSize * 1.3 - CONFIG.trunkParticleSize) * sizeProgress;
                 } else {
                     // 切换回圣诞树时，恢复原大小
-                    const sizeProgress = Math.min(elapsed / (duration * 0.6), 1);
-                    trunkMaterial.size = CONFIG.baseParticleSize + 
-                        (CONFIG.trunkParticleSize - CONFIG.baseParticleSize) * sizeProgress;
+                    const sizeProgress = Math.min(elapsed / (duration * 0.5), 1);
+                    trunkMaterial.size = CONFIG.trunkParticleSize * 1.3 + 
+                        (CONFIG.trunkParticleSize - CONFIG.trunkParticleSize * 1.3) * sizeProgress;
                 }
                 
                 // 标记需要更新
                 crownGeometry.attributes.position.needsUpdate = true;
+                crownGeometry.attributes.color.needsUpdate = true;
                 trunkGeometry.attributes.position.needsUpdate = true;
                 trunkGeometry.attributes.color.needsUpdate = true;
                 branchGeometry.attributes.position.needsUpdate = true;
@@ -663,7 +747,7 @@
                     updateUI();
                     
                     // 确保最终状态正确
-                    trunkMaterial.size = isTree ? CONFIG.trunkParticleSize : CONFIG.baseParticleSize;
+                    trunkMaterial.size = isTree ? CONFIG.trunkParticleSize : CONFIG.trunkParticleSize * 1.3;
                     
                     console.log(`切换完成: ${isTree ? '圣诞树' : '爱心'}模式`);
                 }
@@ -698,24 +782,27 @@
             
             if (!transitionInProgress) {
                 // 根据当前模式调整旋转速度
-                const rotationSpeed = CONFIG.rotationSpeed * (isTree ? 1.0 : 0.8);
+                const rotationSpeed = CONFIG.rotationSpeed * (isTree ? 1.0 : 0.7);
                 
                 // 整体旋转（受鼠标控制）
-                crownParticles.rotation.y += rotationSpeed + mouseX * 0.0008;
-                crownParticles.rotation.x = Math.sin(time) * 0.015 + mouseY * 0.025;
+                crownParticles.rotation.y += rotationSpeed + mouseX * 0.0006;
+                crownParticles.rotation.x = Math.sin(time) * 0.01 + mouseY * 0.02;
                 
-                // 树冠粒子浮动效果
+                // 树冠粒子浮动效果（螺旋树冠的特殊效果）
                 const crownPositions = crownGeometry.attributes.position.array;
                 const originalCrown = isTree ? crownTreePositions : crownHeartPositions;
                 
                 for (let i = 0; i < crownPositions.length; i += 3) {
                     const idx = i / 3;
-                    const float1 = Math.sin(time + idx * 0.03) * CONFIG.floatAmplitude;
-                    const float2 = Math.cos(time * 0.5 + idx * 0.015) * CONFIG.floatAmplitude * 0.5;
+                    const float1 = Math.sin(time * 0.5 + idx * 0.02) * CONFIG.floatAmplitude;
+                    const float2 = Math.cos(time * 0.3 + idx * 0.01) * CONFIG.floatAmplitude * 0.7;
                     
-                    crownPositions[i] = originalCrown[i] + float1 * 0.15 + float2;
-                    crownPositions[i + 1] = originalCrown[i + 1] + float1 * 0.7;
-                    crownPositions[i + 2] = originalCrown[i + 2] + float1 * 0.1 + float2 * 0.25;
+                    // 螺旋树冠的浮动效果：不同高度有不同幅度
+                    const heightFactor = originalCrown[i + 1] / 10 + 0.5;
+                    
+                    crownPositions[i] = originalCrown[i] + float1 * 0.1 * heightFactor + float2 * 0.05;
+                    crownPositions[i + 1] = originalCrown[i + 1] + float1 * 0.8 * heightFactor;
+                    crownPositions[i + 2] = originalCrown[i + 2] + float1 * 0.05 * heightFactor + float2 * 0.1;
                 }
                 
                 crownGeometry.attributes.position.needsUpdate = true;
@@ -730,7 +817,7 @@
             // 雪花动画
             if (snowEnabled && snowGeometry.attributes.position) {
                 const snowPositions = snowGeometry.attributes.position.array;
-                const snowArea = 25;
+                const snowArea = 30;
                 const resetHeight = snowArea + 5;
                 
                 for (let i = 0; i < snowPositions.length; i += 3) {
@@ -742,11 +829,11 @@
                     snowPositions[i + 2] += snowVelocities[velocityIndex + 2];
                     
                     // 添加轻微摆动
-                    snowPositions[i] += Math.sin(time + i) * 0.001;
-                    snowPositions[i + 2] += Math.cos(time + i) * 0.001;
+                    snowPositions[i] += Math.sin(time + i) * 0.0015;
+                    snowPositions[i + 2] += Math.cos(time + i) * 0.0015;
                     
-                    // 如果雪花落到下方，重置到顶部
-                    if (snowPositions[i + 1] < -10) {
+                    // 如果雪花落到地面以下，重置到顶部
+                    if (snowPositions[i + 1] < CONFIG.groundSnowHeight + 1) {
                         snowPositions[i] = (Math.random() - 0.5) * snowArea;
                         snowPositions[i + 1] = resetHeight;
                         snowPositions[i + 2] = (Math.random() - 0.5) * snowArea;
@@ -754,9 +841,6 @@
                 }
                 
                 snowGeometry.attributes.position.needsUpdate = true;
-                
-                // 雪花跟随相机旋转（轻微）
-                snowParticles.rotation.y += 0.0001;
             }
             
             // 渲染
@@ -786,8 +870,11 @@
         
         // ==================== 更新粒子计数显示 ====================
         function updateParticleCount() {
-            const totalParticles = CONFIG.crownParticleCount + CONFIG.trunkParticleCount + 
-                                  CONFIG.branchParticleCount + (snowEnabled ? CONFIG.snowParticleCount : 0);
+            const treeParticles = CONFIG.spiralLayers * CONFIG.particlesPerLayer + 
+                                  CONFIG.trunkParticleCount + CONFIG.branchParticleCount;
+            const snowParticles = snowEnabled ? CONFIG.snowParticleCount : 0;
+            const totalParticles = treeParticles + snowParticles + CONFIG.groundSnowParticleCount;
+            
             document.getElementById('particle-count').textContent = `粒子数: ${totalParticles.toLocaleString()}`;
         }
         
@@ -800,8 +887,8 @@
             
             window.addEventListener('mousemove', (e) => {
                 if (isDragging) {
-                    mouseX = (e.movementX / window.innerWidth) * 4;
-                    mouseY = (e.movementY / window.innerHeight) * 4;
+                    mouseX = (e.movementX / window.innerWidth) * 3;
+                    mouseY = (e.movementY / window.innerHeight) * 3;
                 } else {
                     mouseX = (e.clientX / window.innerWidth) * 2 - 1;
                     mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -828,8 +915,8 @@
                     const touchX = e.touches[0].clientX;
                     const touchY = e.touches[0].clientY;
                     
-                    mouseX = (touchX - touchStartX) / window.innerWidth * 8;
-                    mouseY = (touchY - touchStartY) / window.innerHeight * 8;
+                    mouseX = (touchX - touchStartX) / window.innerWidth * 6;
+                    mouseY = (touchY - touchStartY) / window.innerHeight * 6;
                     
                     touchStartX = touchX;
                     touchStartY = touchY;
@@ -887,9 +974,8 @@
             
             // 双击重置视角
             renderer.domElement.addEventListener('dblclick', () => {
-                camera.position.z = 15;
-                camera.position.y = 1.5;
-                camera.lookAt(0, 0, 0);
+                camera.position.set(12, 8, 12);
+                camera.lookAt(0, CONFIG.treeVerticalPosition + 2, 0);
                 mouseX = 0;
                 mouseY = 0;
             });
@@ -907,7 +993,5 @@
     </script>
 </body>
 </html>
-
-
 
 
