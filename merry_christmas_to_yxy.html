@@ -131,7 +131,7 @@
     <div id="container">
         <div id="ui">
             <h1>✨ ~(｡≧3≦)ﾉ⌒☆宝宝的圣诞树 ✨</h1>
-            <p class="instructions">点击或按 H 键切换爱心 | 鼠标/手指拖动旋转 | 雪花默认开启</p>
+            <p class="instructions">点击或按 H 键切换爱心 | 鼠标/手指拖动旋转</p>
         </div>
         
         <div id="mode-indicator">
@@ -139,7 +139,7 @@
         </div>
         
         <div id="mobile-controls">
-            <button class="mobile-btn" id="btn-switch">切换为爱心</button>
+            <button class="mobile-btn" id="btn-switch">surprise</button>
         </div>
         
         <div id="particle-count">粒子数: 0</div>
@@ -160,11 +160,6 @@
             // 中间层配置 - 在每两层之间增加一个中间层
             intermediateLayerCount: 2,    // 中间层数量
             intermediateLayerParticles: 180, // 每中间层粒子数
-            
-            // 星星配置 - 竖直星星
-            starParticleCount: 100,       // 增加星星粒子数
-            starColor: 0xFFD700,
-            starSize: 0.16,               // 稍微增大星星粒子
             
             // 树干和树枝
             trunkParticleCount: 250,
@@ -201,13 +196,6 @@
             rotationSpeed: 0.0018,
             floatAmplitude: 0.014,
             floatSpeed: 0.00035,
-            starTwinkleSpeed: 0.002,
-            starTwinkleAmplitude: 0.15,
-            
-            // 星星散落配置
-            starFallDuration: 1800,       // 星星散落持续时间
-            starFallSpeed: 0.05,          // 星星散落速度
-            starScatterRadius: 6.0,       // 星星散落范围
             
             // 过渡配置
             transitionDuration: 2000,
@@ -216,9 +204,9 @@
         
         // ==================== 全局变量 ====================
         let scene, camera, renderer;
-        let crownParticles, trunkParticles, branchParticles, snowParticles, groundSnowParticles, starParticles;
-        let crownGeometry, trunkGeometry, branchGeometry, snowGeometry, groundSnowGeometry, starGeometry;
-        let crownMaterial, trunkMaterial, branchMaterial, snowMaterial, groundSnowMaterial, starMaterial;
+        let crownParticles, trunkParticles, branchParticles, snowParticles, groundSnowParticles;
+        let crownGeometry, trunkGeometry, branchGeometry, snowGeometry, groundSnowGeometry;
+        let crownMaterial, trunkMaterial, branchMaterial, snowMaterial, groundSnowMaterial;
         
         // 粒子位置和颜色数组
         let crownTreePositions = [], crownHeartPositions = [];
@@ -227,15 +215,6 @@
         let branchTreePositions = [], branchHeartPositions = [];
         let snowPositions = [], snowVelocities = [];
         let groundSnowPositions = [];
-        let starPositions = [], starHeartPositions = [];
-        let starColors = [];
-        
-        // 星星散落相关变量
-        let starFallPositions = [];       // 星星散落目标位置
-        let starFallVelocities = [];      // 星星散落速度
-        let starFallActive = false;       // 星星是否正在散落
-        let starFallStartTime = 0;        // 星星散落开始时间
-        let starOriginalPositions = [];   // 星星原始位置备份
         
         // 颜色数组
         let trunkTreeColors = [], trunkHeartColors = [];
@@ -254,7 +233,7 @@
             
             if (isMobile) {
                 document.getElementById('mobile-controls').style.display = 'flex';
-                document.querySelector('.instructions').textContent = '点击按钮切换模式 | 拖动旋转';
+                document.querySelector('.instructions').textContent = '点击surprise按钮切换 | 拖动旋转';
             }
             
             // 创建场景
@@ -296,11 +275,6 @@
             snowLight.position.set(5, 10, -5);
             scene.add(snowLight);
             
-            // 星星专用光源（金色）
-            const starLight = new THREE.PointLight(0xFFD700, 0.8, 20);
-            starLight.position.set(0, CONFIG.treeHeight + CONFIG.treeVerticalPosition + 0.5, 0);
-            scene.add(starLight);
-            
             // 生成粒子数据
             generateParticleData();
             
@@ -321,7 +295,7 @@
                 }, 800);
             }, 1200);
             
-            console.log('🎄 多层树冠与星星圣诞树初始化完成！');
+            console.log('🎄 多层树冠圣诞树初始化完成！');
         }
         
         // ==================== 生成粒子数据 ====================
@@ -335,8 +309,6 @@
             branchTreeColors = []; branchHeartColors = [];
             snowPositions = []; snowVelocities = [];
             groundSnowPositions = [];
-            starPositions = []; starHeartPositions = [];
-            starColors = [];
             
             // 1. 生成主螺旋锥形树冠粒子 - 一体渐变
             console.log("生成主螺旋树冠粒子...");
@@ -564,46 +536,7 @@
                 );
             }
             
-            // 8. 生成星星粒子 - 竖直星星
-            console.log(`生成${CONFIG.starParticleCount}个星星粒子...`);
-            const starHeight = CONFIG.treeHeight + CONFIG.treeVerticalPosition + 1.0;
-            
-            // 生成星星的原始位置备份
-            starOriginalPositions = [];
-            
-            for (let i = 0; i < CONFIG.starParticleCount; i++) {
-                // 竖直星星 - 中心聚集，向上伸展
-                const angle = (i / CONFIG.starParticleCount) * Math.PI * 2;
-                const radius = 0.3 + Math.random() * 0.5;
-                
-                // 竖直分布：底部粒子密度高，向上逐渐稀疏
-                const verticalFactor = Math.pow(Math.random(), 2);
-                const yOffset = verticalFactor * 1.2; // 星星高度
-                
-                const x = Math.cos(angle) * radius * (1 - verticalFactor * 0.7);
-                const z = Math.sin(angle) * radius * (1 - verticalFactor * 0.7);
-                const y = starHeight + yOffset;
-                
-                starPositions.push(x, y, z);
-                starOriginalPositions.push(x, y, z);
-                
-                // 星星颜色（金色渐变，顶部更亮）
-                const brightness = 0.7 + verticalFactor * 0.3;
-                starColors.push(
-                    brightness,           // R
-                    brightness * 0.85,    // G
-                    brightness * 0.1      // B
-                );
-            }
-            
-            // 9. 生成星星粒子 - 爱心形状（空的，因为星星会消失）
-            console.log("生成爱心顶部星星粒子（空的）...");
-            for (let i = 0; i < CONFIG.starParticleCount; i++) {
-                // 爱心模式下星星会散落消失，所以位置设为0
-                starHeartPositions.push(0, -10, 0); // 隐藏到地下
-            }
-            
-            // 10. 生成空中雪花粒子
+            // 8. 生成空中雪花粒子
             console.log(`生成${CONFIG.snowParticleCount}个雪花粒子...`);
             const snowArea = 32;
             
@@ -621,7 +554,7 @@
                 );
             }
             
-            // 11. 生成地面雪粒子
+            // 9. 生成地面雪粒子
             console.log(`生成${CONFIG.groundSnowParticleCount}个地面雪粒子...`);
             for (let i = 0; i < CONFIG.groundSnowParticleCount; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -633,31 +566,6 @@
                 const y = CONFIG.groundSnowHeight + (Math.random() - 0.5) * 0.4;
                 
                 groundSnowPositions.push(x, y, z);
-            }
-            
-            // 12. 生成星星散落目标位置（随机散落在雪地周围）
-            console.log("生成星星散落目标位置...");
-            starFallPositions = [];
-            starFallVelocities = [];
-            
-            for (let i = 0; i < CONFIG.starParticleCount; i++) {
-                // 随机散落在雪地周围
-                const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * CONFIG.starScatterRadius;
-                const height = CONFIG.groundSnowHeight + Math.random() * 0.5;
-                
-                starFallPositions.push(
-                    Math.cos(angle) * radius,
-                    height,
-                    Math.sin(angle) * radius
-                );
-                
-                // 随机速度方向
-                starFallVelocities.push(
-                    (Math.random() - 0.5) * CONFIG.starFallSpeed,
-                    -Math.random() * CONFIG.starFallSpeed * 0.8,
-                    (Math.random() - 0.5) * CONFIG.starFallSpeed
-                );
             }
             
             console.log("粒子数据生成完成");
@@ -714,24 +622,7 @@
             branchParticles = new THREE.Points(branchGeometry, branchMaterial);
             scene.add(branchParticles);
             
-            // 4. 创建星星粒子系统
-            starGeometry = new THREE.BufferGeometry();
-            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
-            starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
-            
-            starMaterial = new THREE.PointsMaterial({
-                size: CONFIG.starSize,
-                transparent: true,
-                opacity: 0.95,
-                sizeAttenuation: true,
-                vertexColors: true,
-                blending: THREE.AdditiveBlending
-            });
-            
-            starParticles = new THREE.Points(starGeometry, starMaterial);
-            scene.add(starParticles);
-            
-            // 5. 创建空中雪花粒子系统
+            // 4. 创建空中雪花粒子系统
             snowGeometry = new THREE.BufferGeometry();
             snowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(snowPositions, 3));
             
@@ -747,7 +638,7 @@
             snowParticles = new THREE.Points(snowGeometry, snowMaterial);
             scene.add(snowParticles);
             
-            // 6. 创建地面雪粒子系统
+            // 5. 创建地面雪粒子系统
             groundSnowGeometry = new THREE.BufferGeometry();
             groundSnowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(groundSnowPositions, 3));
             
@@ -761,41 +652,6 @@
             
             groundSnowParticles = new THREE.Points(groundSnowGeometry, groundSnowMaterial);
             scene.add(groundSnowParticles);
-        }
-        
-        // ==================== 启动星星散落动画 ====================
-        function startStarFall() {
-            if (starFallActive) return;
-            
-            starFallActive = true;
-            starFallStartTime = Date.now();
-            
-            console.log("开始星星散落动画...");
-        }
-        
-        // ==================== 重置星星到树顶 ====================
-        function resetStarsToTreeTop() {
-            const starPositionsArray = starGeometry.attributes.position.array;
-            const starColorsArray = starGeometry.attributes.color.array;
-            
-            // 重置星星位置到原始位置
-            for (let i = 0; i < starPositionsArray.length; i++) {
-                starPositionsArray[i] = starOriginalPositions[i];
-            }
-            
-            // 重置星星颜色
-            for (let i = 0; i < starColorsArray.length; i++) {
-                starColorsArray[i] = starColors[i];
-            }
-            
-            starGeometry.attributes.position.needsUpdate = true;
-            starGeometry.attributes.color.needsUpdate = true;
-            
-            // 恢复星星可见性和透明度
-            starMaterial.opacity = 0.95;
-            starParticles.visible = true;
-            
-            console.log("星星已重置到树顶");
         }
         
         // ==================== 丝滑形状切换 ====================
@@ -814,8 +670,6 @@
             const trunkColors = trunkGeometry.attributes.color.array;
             const branchPositions = branchGeometry.attributes.position.array;
             const branchColors = branchGeometry.attributes.color.array;
-            const starPositionsArray = starGeometry.attributes.position.array;
-            const starColorsArray = starGeometry.attributes.color.array;
             
             // 确定目标位置和颜色
             const targetCrownPositions = isTree ? crownHeartPositions : crownTreePositions;
@@ -836,14 +690,6 @@
             const startTime = Date.now();
             const duration = CONFIG.transitionDuration;
             const colorDelay = CONFIG.colorTransitionDelay;
-            
-            // 如果是切换到爱心，启动星星散落
-            if (isTree) {
-                startStarFall();
-            } else {
-                // 如果是切换回圣诞树，重置星星位置
-                resetStarsToTreeTop();
-            }
             
             // 开始过渡动画
             function animateTransition() {
@@ -923,11 +769,6 @@
                     // 确保最终状态正确
                     trunkMaterial.size = isTree ? CONFIG.trunkParticleSize : CONFIG.trunkParticleSize * 1.3;
                     
-                    // 如果切换到爱心且星星散落动画完成，隐藏星星
-                    if (!isTree && !starFallActive) {
-                        starParticles.visible = false;
-                    }
-                    
                     console.log(`切换完成: ${isTree ? '圣诞树' : '爱心'}模式`);
                 }
             }
@@ -945,63 +786,6 @@
             requestAnimationFrame(animate);
             
             const time = Date.now() * CONFIG.floatSpeed;
-            const starTime = Date.now() * CONFIG.starTwinkleSpeed;
-            
-            // 处理星星散落动画
-            if (starFallActive) {
-                const fallElapsed = Date.now() - starFallStartTime;
-                const fallProgress = Math.min(fallElapsed / CONFIG.starFallDuration, 1);
-                
-                const starPositionsArray = starGeometry.attributes.position.array;
-                const starColorsArray = starGeometry.attributes.color.array;
-                
-                for (let i = 0; i < starPositionsArray.length; i += 3) {
-                    const idx = i / 3;
-                    
-                    if (fallProgress < 1) {
-                        // 散落动画：从当前位置向目标位置移动
-                        const startX = starOriginalPositions[i];
-                        const startY = starOriginalPositions[i + 1];
-                        const startZ = starOriginalPositions[i + 2];
-                        
-                        const targetX = starFallPositions[i];
-                        const targetY = starFallPositions[i + 1];
-                        const targetZ = starFallPositions[i + 2];
-                        
-                        // 添加一些抛物线效果
-                        const parabola = Math.sin(fallProgress * Math.PI) * 2.0;
-                        
-                        starPositionsArray[i] = startX + (targetX - startX) * fallProgress;
-                        starPositionsArray[i + 1] = startY + (targetY - startY) * fallProgress - parabola;
-                        starPositionsArray[i + 2] = startZ + (targetZ - startZ) * fallProgress;
-                        
-                        // 逐渐变暗
-                        const colorIdx = idx * 3;
-                        if (colorIdx < starColorsArray.length) {
-                            const darken = 1 - fallProgress * 0.7;
-                            starColorsArray[colorIdx] *= darken;
-                            starColorsArray[colorIdx + 1] *= darken;
-                            starColorsArray[colorIdx + 2] *= darken;
-                        }
-                    } else {
-                        // 动画完成，设置到最终位置
-                        starPositionsArray[i] = starFallPositions[i];
-                        starPositionsArray[i + 1] = starFallPositions[i + 1];
-                        starPositionsArray[i + 2] = starFallPositions[i + 2];
-                    }
-                }
-                
-                starGeometry.attributes.position.needsUpdate = true;
-                starGeometry.attributes.color.needsUpdate = true;
-                
-                // 逐渐减少星星透明度
-                starMaterial.opacity = 0.95 * (1 - fallProgress);
-                
-                if (fallProgress >= 1) {
-                    starFallActive = false;
-                    console.log("星星散落动画完成");
-                }
-            }
             
             if (!transitionInProgress) {
                 // 根据当前模式调整旋转速度
@@ -1028,27 +812,6 @@
                 }
                 
                 crownGeometry.attributes.position.needsUpdate = true;
-                
-                // 星星闪烁效果（仅在圣诞树模式且没有散落时）
-                if (isTree && !starFallActive) {
-                    const starPositionsArray = starGeometry.attributes.position.array;
-                    
-                    for (let i = 0; i < starPositionsArray.length; i += 3) {
-                        const idx = i / 3;
-                        const twinkle = Math.sin(starTime + idx * 0.5) * CONFIG.starTwinkleAmplitude * 0.03;
-                        const twinkle2 = Math.cos(starTime * 0.7 + idx * 0.3) * CONFIG.starTwinkleAmplitude * 0.02;
-                        
-                        starPositionsArray[i] = starOriginalPositions[i] + twinkle;
-                        starPositionsArray[i + 1] = starOriginalPositions[i + 1] + twinkle2;
-                        starPositionsArray[i + 2] = starOriginalPositions[i + 2] + twinkle;
-                    }
-                    
-                    starGeometry.attributes.position.needsUpdate = true;
-                    
-                    // 星星跟随旋转
-                    starParticles.rotation.y = crownParticles.rotation.y * 0.5;
-                    starParticles.rotation.x = crownParticles.rotation.x * 0.5;
-                }
                 
                 // 树干和树枝跟随旋转
                 trunkParticles.rotation.y = crownParticles.rotation.y;
@@ -1095,7 +858,7 @@
             
             if (isTree) {
                 title.innerHTML = '✨ ~(｡≧3≦)ﾉ⌒☆宝宝的圣诞树 ✨';
-                if (switchBtn) switchBtn.textContent = '切换为爱心';
+                if (switchBtn) switchBtn.textContent = 'surprise';
                 modeText.textContent = '圣诞树模式';
                 modeText.style.background = "rgba(255, 105, 180, 0.2)";
             } else {
@@ -1117,10 +880,8 @@
             const treeParticles = crownParticlesTotal + 
                                   CONFIG.trunkParticleCount + CONFIG.branchParticleCount;
             
-            // 只在圣诞树模式计算星星粒子
-            const starParticles = isTree && !starFallActive ? CONFIG.starParticleCount : 0;
             const snowParticles = snowEnabled ? CONFIG.snowParticleCount : 0;
-            const totalParticles = treeParticles + starParticles + snowParticles + CONFIG.groundSnowParticleCount;
+            const totalParticles = treeParticles + snowParticles + CONFIG.groundSnowParticleCount;
             
             document.getElementById('particle-count').textContent = `粒子数: ${totalParticles.toLocaleString()}`;
         }
